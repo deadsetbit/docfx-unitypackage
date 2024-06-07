@@ -217,7 +217,7 @@ runs:
     
     - name: Dotnet Update
       shell: bash
-      run: dotnet tool update -g docfx
+      run: dotnet tool update -g docfx --version 2.76.0
 
     - name: Build
       shell: bash
