@@ -8,6 +8,15 @@ inputs:
   github_token:
     description: 'Set a generated GITHUB_TOKEN for pushing to the remote branch.'
     required: false
+  base_url:
+    description: >-
+      Public base URL of the built site, with a trailing slash, e.g.
+      https://owner.github.io/repo/. Set this when the site is deployed to a different
+      repository than the one this workflow runs in, or when the running repository has no
+      Pages configuration to read. Left empty, the URL is read from the running
+      repository's Pages configuration, as before.
+    required: false
+    default: ''
 
 runs:
   using: "composite"
@@ -117,8 +126,13 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        BASE_URL: ${{ inputs.base_url }}
       run: |
-        url=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.html_url')
+        url="$BASE_URL"
+        if [ -z "$url" ]; then
+          url=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.html_url')
+        fi
+        case "$url" in */) ;; *) url="$url/" ;; esac
         echo '{
             "metadata": [{
                 "src": [{"src": "..", "files": ["**/*.cs"]}],
@@ -228,6 +242,11 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        BASE_URL: ${{ inputs.base_url }}
       run: |
-        url=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.html_url')
+        url="$BASE_URL"
+        if [ -z "$url" ]; then
+          url=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.html_url')
+        fi
+        case "$url" in */) ;; *) url="$url/" ;; esac
         sed -i '/<\/head>/i\      <meta http-equiv="refresh" content="0;URL='"$url"manual/'">' _site/index.html
