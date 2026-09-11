@@ -155,8 +155,10 @@ runs:
       run: |
         set -euo pipefail
 
-        # These reach an HTML attribute. Anything that could close one is refused rather
-        # than escaped, so a malformed input fails the build instead of the page.
+        # The URLs are configuration, so a bad one is an operator error and is refused
+        # rather than escaped: a wrong link is worth failing a build over. The version is the
+        # package's own data and is escaped instead, below — refusing it would fail the build
+        # of a package that is merely unusual.
         for url in "$SITE_ROOT_URL" "$HOME_URL"; do
           [ -z "$url" ] && continue
           case "$url" in
@@ -173,6 +175,15 @@ runs:
           version=$(jq -r '.version // empty' package.json)
         fi
 
+        html_escape() {
+          local text="$1"
+          text="${text//&/&amp;}"
+          text="${text//</&lt;}"
+          text="${text//>/&gt;}"
+          printf '%s' "${text//\"/&quot;}"
+        }
+        version_html=$(html_escape "$version")
+
         footer="<span>Made by <a href=\"https://github.com/$GITHUB_REPOSITORY_OWNER\" target=\"_blank\">$GITHUB_REPOSITORY_OWNER</a> using <a href=\"https://dotnet.github.io/docfx\" target=\"_blank\">DocFX</a></span>"
 
         facts=''
@@ -183,7 +194,7 @@ runs:
             case "$root" in */) ;; *) root="$root/" ;; esac
             manifest_attr=" data-docs-manifest=\"${root}versions.json\""
           fi
-          facts="$facts<span class=\"docs-version\" data-docs-version=\"$version\"$manifest_attr>Version $version</span>"
+          facts="$facts<span class=\"docs-version\" data-docs-version=\"$version_html\"$manifest_attr>Version $version_html</span>"
         fi
         if [ -n "$HOME_URL" ]; then
           label="${HOME_URL#*://}"

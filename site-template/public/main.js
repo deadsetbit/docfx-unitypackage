@@ -37,12 +37,10 @@ function showBanner(variant, text) {
   document.body.insertBefore(banner, document.body.firstChild)
 }
 
-const NO_MANIFEST_PUBLISHED = Symbol("no manifest published")
-
 async function fetchManifest(manifestUrl) {
   const response = await fetch(manifestUrl, { cache: "no-cache" })
   if (response.status === 404) {
-    return NO_MANIFEST_PUBLISHED
+    return null
   }
   if (!response.ok) {
     throw new Error(`manifest request failed with ${response.status}`)

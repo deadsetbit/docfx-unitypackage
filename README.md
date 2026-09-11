@@ -134,10 +134,14 @@ A site that publishes one folder per release needs two addresses, not one. `base
 release's own folder — where this build is being deployed — and `site_root_url` is the root
 above it, shared by every release.
 
-Set `site_root_url` and each built page gains a superseded-version banner. The page carries
-its own version and the absolute URL of a version manifest, `<site_root_url>versions.json`,
-as static HTML in the footer; the shipped `public/main.js` fetches that manifest on load.
-Publishing the manifest is the site's own business — the action only bakes the address.
+Set `site_root_url` and each built page carries its own version and the absolute URL of a
+version manifest, `<site_root_url>versions.json`, as static HTML in the footer. The shipped
+`public/main.js` fetches that manifest on load and reports when it could not.
+
+What the page *says* about a newer version is not part of this: publishing the manifest, and
+comparing against it, belong to the site. The action's job is to bake in the version and the
+address, because those are frozen into a page the moment it is published and everything else
+can be served later.
 
 Baking the absolute URL, rather than computing a relative one, is deliberate: an API
 reference page sits three levels below the root and the index sits at it, so a relative path

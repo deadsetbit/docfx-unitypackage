@@ -99,22 +99,24 @@ jobs:
           case "$root" in */) ;; *) root="$root/" ;; esac
           manifest="${root}versions.json"
 
-          # toc.html files are navigation fragments rather than pages, and carry no footer.
-          pages=$(find _site -name '*.html' -not -path '_site/public/*' -not -name 'toc.html')
-          test -n "$pages" || { echo "no pages were built"; exit 1; }
-
-          status=0
-          for page in $pages; do
+          # Null-delimited: the action turns 'Third Party Notices.md' into a page, so a built
+          # path can carry spaces. toc.html files are navigation fragments, not pages.
+          checked=0
+          missing=0
+          while IFS= read -r -d '' page; do
+            checked=$((checked + 1))
             for needle in \
               'data-docs-version="1.2.3"' \
               "data-docs-manifest=\"$manifest\"" \
               "href=\"$HOME_URL\""; do
-              grep -qF "$needle" "$page" || { echo "$page is missing: $needle"; status=1; }
+              grep -qF "$needle" "$page" || { echo "$page is missing: $needle"; missing=1; }
             done
-          done
-          test "$status" -eq 0 || exit 1
+          done < <(find _site -name '*.html' -not -path '_site/public/*' -not -name 'toc.html' -print0)
 
-          echo "$(echo "$pages" | wc -l) pages carry all three baked facts."
+          test "$checked" -gt 0 || { echo "no pages were built"; exit 1; }
+          test "$missing" -eq 0 || exit 1
+
+          echo "$checked pages carry all three baked facts."
 
       - name: Assert the banner script shipped and reads the baked facts
         shell: bash
