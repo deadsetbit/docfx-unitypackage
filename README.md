@@ -107,6 +107,25 @@ Specifically, the root of your project should contain:
 <!-- USAGE -->
 ## Usage
 
+### Inputs
+
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `github_token` | no | | Token used to read the running repository's Pages configuration. |
+| `base_url` | no | *(empty)* | Public base URL of the built site, with a trailing slash, for example `https://owner.github.io/repo/`. |
+
+`base_url` is what to set when the site is **deployed to a different repository than the one the workflow runs in**, or when the running repository has no Pages configuration to read — a private repository on a plan without Pages, for instance. It is used in both places the action needs the site's own address: the `sitemap`/`xref` entries of the generated `docfx.json`, and the meta refresh written into the built `index.html`.
+
+Left empty, the URL is read from the running repository's Pages configuration exactly as before, so existing workflows need no change.
+
+```yaml
+      - name: Build
+        uses: CaseyHofland/docfx-unitypackage@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          base_url: https://owner.github.io/other-repo/
+```
+
 DocFX Unity package has been specifically designed to mimic the affordances and limitations of the [Package Manager DocTools@2.1][workflow-url]. In theory, you should be able to use the documentation of the version 2.1 tools and everything should work exactly the same, except for the following differences:
 - DocFX Unity package is forgiving to beginners. All that is required by the [Package Manager DocTools@2.1][workflow-url] is optional, though strongly recommended.
 - To add a custom logo and favicon to the generated website, add a file called `logo` and `favicon` inside the `Documentation~/images/` folder. The recommended logo height is 50px.
