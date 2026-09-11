@@ -4,7 +4,7 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-09-11
 ### Added
 - `base_url` input. Set it to the public base URL of the built site when the site is deployed to a different repository than the one the workflow runs in, or when the running repository has no Pages configuration to read. It is used both in the generated `docfx.json` (`sitemap`, `xref`) and in the meta refresh written into the built `index.html`. Left empty, the URL is read from the running repository's Pages configuration as before.
 
