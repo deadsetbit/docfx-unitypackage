@@ -113,6 +113,8 @@ Specifically, the root of your project should contain:
 |---|---|---|---|
 | `github_token` | no | | Token used to read the running repository's Pages configuration. |
 | `base_url` | no | *(empty)* | Public base URL of the built site, with a trailing slash, for example `https://owner.github.io/repo/`. |
+| `site_root_url` | no | *(empty)* | Root of the documentation site, with a trailing slash, for example `https://owner.github.io/repo/`. Only differs from `base_url` when the site publishes one folder per release. |
+| `home_url` | no | *(empty)* | Absolute URL baked into every page as a permanent link home. |
 
 `base_url` is what to set when the site is **deployed to a different repository than the one the workflow runs in**, or when the running repository has no Pages configuration to read — a private repository on a plan without Pages, for instance. It is used in both places the action needs the site's own address: the `sitemap`/`xref` entries of the generated `docfx.json`, and the meta refresh written into the built `index.html`.
 
@@ -124,6 +126,40 @@ Left empty, the URL is read from the running repository's Pages configuration ex
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           base_url: https://owner.github.io/other-repo/
+```
+
+### Version-pinned sites
+
+A site that publishes one folder per release needs two addresses, not one. `base_url` is the
+release's own folder — where this build is being deployed — and `site_root_url` is the root
+above it, shared by every release.
+
+Set `site_root_url` and each built page gains a superseded-version banner. The page carries
+its own version and the absolute URL of a version manifest, `<site_root_url>versions.json`,
+as static HTML in the footer; the shipped `public/main.js` fetches that manifest on load.
+Publishing the manifest is the site's own business — the action only bakes the address.
+
+Baking the absolute URL, rather than computing a relative one, is deliberate: an API
+reference page sits three levels below the root and the index sits at it, so a relative path
+would need a different number of `../` per page and would break silently on the pages nobody
+opens.
+
+The fetch can fail for entirely ordinary reasons — the reader is offline, a proxy blocks it,
+the host hiccups — and a page cannot tell any of that from a site that is genuinely gone. So
+a failed check says only that the check did not run, and claims nothing about the
+documentation having moved.
+
+`home_url` is the escape hatch that does not depend on any of this working. It is baked into
+every page as a plain link, so it survives with the HTML and needs no fetch, no CORS and no
+uptime from whatever it points at.
+
+```yaml
+      - name: Build
+        uses: deadsetbit/docfx-unitypackage@v1.2.0
+        with:
+          base_url: https://owner.github.io/repo/1.4.0/
+          site_root_url: https://owner.github.io/repo/
+          home_url: https://example.com
 ```
 
 DocFX Unity package has been specifically designed to mimic the affordances and limitations of the [Package Manager DocTools@2.1][workflow-url]. In theory, you should be able to use the documentation of the version 2.1 tools and everything should work exactly the same, except for the following differences:

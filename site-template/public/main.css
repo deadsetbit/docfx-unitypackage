@@ -1,0 +1,28 @@
+/* The facts the action bakes into every page's footer, and the version banner. */
+
+footer .docs-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+footer .docs-version {
+  font-variant-numeric: tabular-nums;
+}
+
+.docs-banner {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid currentColor;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.docs-banner-unchecked {
+  background: #f8f9fa;
+  color: #495057;
+}
+
+[data-bs-theme="dark"] .docs-banner-unchecked {
+  background: #2b3035;
+  color: #dee2e6;
+}

@@ -1,0 +1,167 @@
+name: Verify build inputs
+
+# Proves the three URL inputs reach the built site: base_url into the sitemap and the meta
+# refresh, site_root_url into the manifest URL baked on every page, and home_url into the
+# permanent link baked beside it.
+#
+# This repository has no Pages configuration. Without base_url the action's URL lookup
+# (`gh api repos/$GITHUB_REPOSITORY/pages`) fails and, because composite run steps stop on
+# error, takes the step with it. So this workflow completing at all is itself the evidence
+# that the input path was taken and the lookup never ran.
+#
+# The second job covers the inputs being absent, because the action is also used without a
+# version banner and must keep building then.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Base URL the built site should carry'
+        required: true
+        default: 'https://example.invalid/verify/1.2.3/'
+      site_root_url:
+        description: 'Documentation site root the version manifest is resolved against'
+        required: true
+        default: 'https://example.invalid/verify/'
+      home_url:
+        description: 'Permanent link home baked into every page'
+        required: true
+        default: 'https://example.invalid/home'
+
+jobs:
+  with-inputs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the action under test
+        uses: actions/checkout@v4
+        with:
+          path: action-under-test
+
+      - name: Write a minimal Unity package at the workspace root
+        shell: bash
+        run: |
+          cat > package.json <<'JSON'
+          {
+            "name": "com.example.baseurlcheck",
+            "version": "1.2.3",
+            "displayName": "Base URL Check",
+            "description": "Fixture package used to verify the build inputs.",
+            "unity": "6000.0"
+          }
+          JSON
+          printf '# Base URL Check\n\nFixture package.\n' > README.md
+          printf '# Changelog\n\n## [1.2.3] - 2026-01-01\nFixture.\n' > CHANGELOG.md
+          printf 'MIT\n' > LICENSE
+          mkdir -p Runtime
+          printf 'namespace Example { public class Thing { } }\n' > Runtime/Thing.cs
+
+      - name: Build the site with every input set
+        uses: ./action-under-test
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          base_url: ${{ inputs.base_url }}
+          site_root_url: ${{ inputs.site_root_url }}
+          home_url: ${{ inputs.home_url }}
+
+      - name: Assert base_url reached the sitemap and the redirect
+        shell: bash
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          url="$BASE_URL"
+          case "$url" in */) ;; *) url="$url/" ;; esac
+
+          echo "Expecting: $url"
+
+          test -f _site/sitemap.xml || { echo "no sitemap was built"; exit 1; }
+          grep -qF "$url" _site/sitemap.xml || {
+            echo "sitemap does not carry the supplied URL:"; head -20 _site/sitemap.xml; exit 1;
+          }
+
+          grep -qF "content=\"0;URL=${url}manual/\"" _site/index.html || {
+            echo "index redirect does not carry the supplied URL:"; grep -i refresh _site/index.html; exit 1;
+          }
+
+          echo "sitemap and index redirect both carry the supplied base URL."
+
+      - name: Assert every built page carries the version, the manifest URL and the link home
+        shell: bash
+        env:
+          SITE_ROOT_URL: ${{ inputs.site_root_url }}
+          HOME_URL: ${{ inputs.home_url }}
+        run: |
+          root="$SITE_ROOT_URL"
+          case "$root" in */) ;; *) root="$root/" ;; esac
+          manifest="${root}versions.json"
+
+          # toc.html files are navigation fragments rather than pages, and carry no footer.
+          pages=$(find _site -name '*.html' -not -path '_site/public/*' -not -name 'toc.html')
+          test -n "$pages" || { echo "no pages were built"; exit 1; }
+
+          status=0
+          for page in $pages; do
+            for needle in \
+              'data-docs-version="1.2.3"' \
+              "data-docs-manifest=\"$manifest\"" \
+              "href=\"$HOME_URL\""; do
+              grep -qF "$needle" "$page" || { echo "$page is missing: $needle"; status=1; }
+            done
+          done
+          test "$status" -eq 0 || exit 1
+
+          echo "$(echo "$pages" | wc -l) pages carry all three baked facts."
+
+      - name: Assert the banner script shipped and reads the baked facts
+        shell: bash
+        run: |
+          test -f _site/public/main.js || { echo "no main.js was published"; exit 1; }
+          grep -qF 'data-docs-manifest' _site/public/main.js || {
+            echo "the published main.js is not the action's banner script:"; head -5 _site/public/main.js; exit 1;
+          }
+          echo "the banner script shipped and reads the baked facts."
+
+  without-inputs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the action under test
+        uses: actions/checkout@v4
+        with:
+          path: action-under-test
+
+      - name: Write a minimal Unity package at the workspace root
+        shell: bash
+        run: |
+          cat > package.json <<'JSON'
+          {
+            "name": "com.example.baseurlcheck",
+            "version": "1.2.3",
+            "displayName": "Base URL Check",
+            "description": "Fixture package used to verify the build inputs.",
+            "unity": "6000.0"
+          }
+          JSON
+          printf '# Base URL Check\n\nFixture package.\n' > README.md
+          printf 'MIT\n' > LICENSE
+          mkdir -p Runtime
+          printf 'namespace Example { public class Thing { } }\n' > Runtime/Thing.cs
+
+      - name: Build the site with the banner inputs left empty
+        uses: ./action-under-test
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          base_url: ${{ inputs.base_url }}
+
+      - name: Assert the site built and the banner stayed inert
+        shell: bash
+        run: |
+          test -f _site/index.html || { echo "no site was built"; exit 1; }
+          if grep -rqF 'data-docs-manifest=' _site --include='*.html'; then
+            echo "a manifest URL was baked with no site_root_url set"
+            exit 1
+          fi
+          grep -qF 'data-docs-version="1.2.3"' _site/api/index.html || {
+            echo "the version is missing from a built page"; exit 1;
+          }
+          echo "the site built, the version shipped, and no manifest URL was baked."

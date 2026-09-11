@@ -17,6 +17,22 @@ inputs:
       repository's Pages configuration, as before.
     required: false
     default: ''
+  site_root_url:
+    description: >-
+      Root of the documentation site, with a trailing slash, e.g.
+      https://owner.github.io/repo/. When the site publishes one folder per release,
+      base_url points at this release's folder and this points at the root above it. The
+      version manifest the superseded-version banner reads is resolved against it, and the
+      resulting absolute URL is baked into every page. Left empty, no banner is baked.
+    required: false
+    default: ''
+  home_url:
+    description: >-
+      Absolute URL baked into every page as a permanent link home. It is a link and never a
+      fetch, so it keeps working from a page whose site has been retired. Left empty, no
+      link is baked.
+    required: false
+    default: ''
 
 runs:
   using: "composite"
@@ -122,6 +138,70 @@ runs:
         echo $content >> $GITHUB_ENV
         echo 'EOF' >> $GITHUB_ENV
 
+    - name: Stage the site template
+      shell: bash
+      run: |
+        rm -rf Documentation~/site-template
+        cp -R '${{ github.action_path }}/site-template' Documentation~/site-template
+
+    # Baked as static HTML rather than written by the banner script, because a reader with
+    # scripting disabled still needs the version they are reading and a way home, and
+    # because an immutable page cannot be given either of them afterwards.
+    - name: Compose the page footer
+      shell: bash
+      env:
+        SITE_ROOT_URL: ${{ inputs.site_root_url }}
+        HOME_URL: ${{ inputs.home_url }}
+      run: |
+        set -euo pipefail
+
+        # These reach an HTML attribute. Anything that could close one is refused rather
+        # than escaped, so a malformed input fails the build instead of the page.
+        for url in "$SITE_ROOT_URL" "$HOME_URL"; do
+          [ -z "$url" ] && continue
+          case "$url" in
+            http://*|https://*) ;;
+            *) echo "::error::'$url' is not an http(s) URL."; exit 1 ;;
+          esac
+          case "$url" in
+            *[\"\<\>\&\ ]*) echo "::error::'$url' contains a character that cannot appear in an HTML attribute."; exit 1 ;;
+          esac
+        done
+
+        version=''
+        if [ -f package.json ]; then
+          version=$(jq -r '.version // empty' package.json)
+        fi
+
+        footer="<span>Made by <a href=\"https://github.com/$GITHUB_REPOSITORY_OWNER\" target=\"_blank\">$GITHUB_REPOSITORY_OWNER</a> using <a href=\"https://dotnet.github.io/docfx\" target=\"_blank\">DocFX</a></span>"
+
+        facts=''
+        if [ -n "$version" ]; then
+          manifest_attr=''
+          if [ -n "$SITE_ROOT_URL" ]; then
+            root="$SITE_ROOT_URL"
+            case "$root" in */) ;; *) root="$root/" ;; esac
+            manifest_attr=" data-docs-manifest=\"${root}versions.json\""
+          fi
+          facts="$facts<span class=\"docs-version\" data-docs-version=\"$version\"$manifest_attr>Version $version</span>"
+        fi
+        if [ -n "$HOME_URL" ]; then
+          label="${HOME_URL#*://}"
+          label="${label%/}"
+          facts="$facts<span class=\"docs-home\"><a href=\"$HOME_URL\">$label</a></span>"
+        fi
+        if [ -n "$facts" ]; then
+          footer="$footer<span class=\"docs-facts\">$facts</span>"
+        fi
+
+        # One line, JSON-quoted. Four later steps insert into the generated docfx.json by
+        # line number, so the footer must not grow a second line.
+        {
+          echo 'app_footer_json<<APP_FOOTER_EOF'
+          jq -Rn --arg html "$footer" '$html'
+          echo 'APP_FOOTER_EOF'
+        } >> "$GITHUB_ENV"
+
     - name: Generate docfx.json
       shell: bash
       env:
@@ -143,7 +223,7 @@ runs:
             "build": {
                 "globalMetadata": {
                     "_appTitle": "'${{ fromJson(env.package).displayName }}' | '${{ fromJson(env.package).version }}'",
-                    "_appFooter": "<span>Made by <a href=\"https://github.com/'$GITHUB_REPOSITORY_OWNER'\" target=\"_blank\">'$GITHUB_REPOSITORY_OWNER'</a> using <a href=\"https://dotnet.github.io/docfx\" target=\"_blank\">DocFX</a></span>",
+                    "_appFooter": '"$app_footer_json"',
                     "_enableSearch": true,
                     "_enableNewTab": false,
                     "_disableNewTab": true,
@@ -163,7 +243,7 @@ runs:
                     {"src": "manual", "files": ["**/*.md"], "dest": "manual"}
                 ],
                 "resource": [{"files": ["manual/images/*"]}],
-                "template": ["default", "modern"],
+                "template": ["default", "modern", "site-template"],
                 "sitemap": {"baseUrl": "'$url'"},
                 "xref": ["'$url'"],
                 "xrefService": ["https://xref.docs.microsoft.com/query?uid={uid}"],
@@ -221,6 +301,18 @@ runs:
         elif [ -f Documentation~/manual/filter.yaml ]; then
           sed -i '5i\        "filter": "manual/filter.yaml",' Documentation~/docfx.json
         fi
+
+    # The four steps above insert into docfx.json by line number. Nothing keeps those
+    # numbers true as the generated JSON changes, so the one cheap way to notice is to
+    # refuse to build a docfx.json that no longer parses.
+    - name: Check the generated docfx.json still parses
+      shell: bash
+      run: |
+        python3 -c 'import json,sys; json.load(open("Documentation~/docfx.json"))' || {
+          echo "::error::the generated docfx.json is not valid JSON — a line-numbered insert landed wrong."
+          cat -n Documentation~/docfx.json
+          exit 1
+        }
 
     # Build docfx site through the Documentation~ folder
 
