@@ -1,5 +1,9 @@
 name: Verify build inputs
 
+# The file keeps its original name so that feature branches can dispatch it: workflow_dispatch
+# resolves the workflow's path on the default branch, and a renamed file cannot be run from
+# the branch that renames it — which is the only time this workflow is wanted.
+#
 # Proves the three URL inputs reach the built site: base_url into the sitemap and the meta
 # refresh, site_root_url into the manifest URL baked on every page, and home_url into the
 # permanent link baked beside it.
