@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - `site_root_url` input. Set it to the root of the documentation site when the site publishes one folder per release, so that `base_url` points at a release's own folder and this points at the root above it. The version manifest the superseded-version banner reads is resolved against it as `<site_root_url>versions.json`, and that absolute URL is baked into every built page. Left empty, no banner is baked.
 - `home_url` input. An absolute URL baked into every page as a permanent link home. It is a link and never a fetch, so it keeps working from a page whose site has been retired. Left empty, no link is baked.
-- A site template shipped with the action, published as `public/main.js` and `public/main.css`. The script reads the facts baked into the page, fetches the version manifest, and says the check did not run when that fetch does not succeed.
+- A site template shipped with the action, published as `public/main.js` and `public/main.css`. The script reads the facts baked into the page and fetches the version manifest. A 404 is taken as the site publishing no manifest and passes quietly; any other failure is inconclusive and the page says the check did not run.
 - The generated `docfx.json` is checked for validity before the build. Four steps insert into it by line number, and nothing else would catch an insert that landed wrong.
 
 ### Changed

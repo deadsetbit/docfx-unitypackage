@@ -8,7 +8,13 @@
 // A failed fetch is not evidence that anything moved. The reader may be offline or behind a
 // proxy, and a page cannot tell that from a site that is genuinely gone, so the wording for
 // that case claims nothing beyond the check not having run. It also does not fall silent:
-// once this feature exists, rendering nothing is the claim that nothing newer was found.
+// once there is a manifest to compare against, rendering nothing is the claim that nothing
+// newer was found.
+//
+// A 404 is the exception, and the only failure the page can read anything into: the server
+// answered, and what it said is that this site publishes no manifest. That is a site without
+// the feature rather than a check that went wrong, so it stays quiet. Every other failure is
+// inconclusive and says so.
 
 function readBakedFacts() {
   const source = document.querySelector("[data-docs-version][data-docs-manifest]")
@@ -31,8 +37,13 @@ function showBanner(variant, text) {
   document.body.insertBefore(banner, document.body.firstChild)
 }
 
+const NO_MANIFEST_PUBLISHED = Symbol("no manifest published")
+
 async function fetchManifest(manifestUrl) {
   const response = await fetch(manifestUrl, { cache: "no-cache" })
+  if (response.status === 404) {
+    return NO_MANIFEST_PUBLISHED
+  }
   if (!response.ok) {
     throw new Error(`manifest request failed with ${response.status}`)
   }

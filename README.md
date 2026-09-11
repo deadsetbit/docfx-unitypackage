@@ -149,6 +149,11 @@ the host hiccups — and a page cannot tell any of that from a site that is genu
 a failed check says only that the check did not run, and claims nothing about the
 documentation having moved.
 
+A 404 is the exception, and the only failure worth reading anything into: the server
+answered, and what it said is that this site publishes no manifest. That is a site without
+the feature rather than a check that went wrong, so the page stays quiet — which is also what
+lets a site adopt the banner before it starts publishing a manifest.
+
 `home_url` is the escape hatch that does not depend on any of this working. It is baked into
 every page as a plain link, so it survives with the HTML and needs no fetch, no CORS and no
 uptime from whatever it points at.
