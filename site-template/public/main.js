@@ -6,9 +6,11 @@
 //
 // A failed fetch is not evidence that anything moved. The reader may be offline or behind a
 // proxy, and a page cannot tell that from a site that is genuinely gone, so the wording for
-// that case claims nothing beyond the check not having run. It also does not fall silent:
-// once there is a manifest to compare against, rendering nothing is the claim that nothing
-// newer was found.
+// that case claims nothing beyond the check not having run.
+//
+// Once there is a readable manifest and a version to compare, the banner always renders. The
+// picker it carries is the only route between releases, and the current page is where a reader
+// looking for an older one starts.
 //
 // A 404 is the exception, and the only failure the page can read anything into: the server
 // answered, and what it said is that this site publishes no manifest. That is a site without
@@ -16,6 +18,14 @@
 // inconclusive and says so.
 
 const UNCHECKED_TEXT = "The check for a newer version of this documentation did not run."
+
+// A stable reader is never pointed at a newer prerelease, so on that page only the narrower
+// claim is true.
+export function currentText(version, latestKind) {
+  return latestKind === "stable"
+    ? `This documents version ${version}, the latest stable release.`
+    : `This documents version ${version}, the latest release.`
+}
 
 // --- version precedence -----------------------------------------------------
 //
@@ -115,6 +125,12 @@ export function decideBanner(version, manifest) {
     return unchecked
   }
 
+  // A manifest naming no releases contradicts the page reading it, which is one. Nothing true
+  // can be said from it, and no reader can fix it, so it goes to the console instead.
+  if (manifest.versions.length === 0) {
+    return { kind: "unusable" }
+  }
+
   // What counts as newer depends on the reader's own version: a stable reader is told only
   // about a newer stable, because nudging them onto an alpha is worse than leaving them alone.
   // A reader already on a prerelease is told about anything newer.
@@ -124,11 +140,14 @@ export function decideBanner(version, manifest) {
   const readable = entries.length
 
   let newest = null
+  let skippedPrerelease = false
   for (const entry of entries) {
-    if (!ownIsPrerelease && parseVersion(entry.version).prerelease.length > 0) {
+    if (compareVersions(entry.version, version) !== 1) {
       continue
     }
-    if (compareVersions(entry.version, version) !== 1) {
+    if (!ownIsPrerelease && parseVersion(entry.version).prerelease.length > 0) {
+      // Not pointed at, but it is why this page cannot call itself the latest release.
+      skippedPrerelease = true
       continue
     }
     if (newest === null || compareVersions(entry.version, newest) === 1) {
@@ -142,7 +161,11 @@ export function decideBanner(version, manifest) {
     return unchecked
   }
 
-  return newest === null ? null : { kind: "superseded", version: newest }
+  if (newest !== null) {
+    return { kind: "superseded", version: newest }
+  }
+
+  return { kind: "current", latestKind: skippedPrerelease ? "stable" : "release" }
 }
 
 // One reading of the versions list, used by both the decision and the picker.
@@ -233,11 +256,17 @@ function showBanner(variant, text, href, linkText) {
   return banner
 }
 
+// Below two there is nothing to choose between, the reader's own version being one of them.
+export function pickerEntries(entries) {
+  const reachable = entries.filter((entry) => entry.url)
+  return reachable.length < 2 ? [] : reachable
+}
+
 // A select rather than a list of links: every release ever published ends up in here, and the
 // banner has to stay one line.
 function addVersionPicker(banner, facts, entries) {
-  const reachable = entries.filter((entry) => entry.url)
-  if (reachable.length < 2) {
+  const reachable = pickerEntries(entries)
+  if (reachable.length === 0) {
     return
   }
   const picker = document.createElement("select")
@@ -342,6 +371,12 @@ async function checkForNewerVersion() {
   if (decision === null) {
     return
   }
+  if (decision.kind === "unusable") {
+    console.warn(
+      `Version banner: the manifest at ${facts.manifestUrl} names no versions, so this page cannot say whether it is current.`,
+    )
+    return
+  }
   if (decision.kind === "unchecked") {
     showBanner("unchecked", decision.text)
     return
@@ -352,6 +387,12 @@ async function checkForNewerVersion() {
   }
 
   const entries = versionEntries(manifest, facts.siteRoot)
+
+  if (decision.kind === "current") {
+    addVersionPicker(showBanner("current", currentText(facts.version, decision.latestKind)), facts, entries)
+    return
+  }
+
   const target = entries.find((entry) => entry.version === decision.version)
 
   const banner = showBanner(

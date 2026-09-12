@@ -6,7 +6,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { compareVersions, decideBanner, newerVersionUrls, versionEntries } from "../site-template/public/main.js"
+import { compareVersions, currentText, decideBanner, newerVersionUrls, versionEntries } from "../site-template/public/main.js"
 
 const manifest = (versions, extra = {}) => ({
   schemaVersion: 1,
@@ -30,13 +30,22 @@ test("a superseded stable version is told about the newer stable", () => {
   assert.equal(decision.version, "1.1.0")
 })
 
-test("the current stable version is told nothing", () => {
-  assert.equal(decideBanner("1.1.0", manifest(["1.0.0", "1.1.0"])), null)
+test("the current stable version is told that it is current", () => {
+  const decision = decideBanner("1.1.0", manifest(["1.0.0", "1.1.0"]))
+  assert.equal(decision.kind, "current")
+  assert.equal(decision.latestKind, "release")
 })
 
-test("a stable version ignores a newer prerelease", () => {
-  // Nudging someone from stable onto an alpha is worse than leaving them alone.
-  assert.equal(decideBanner("1.0.0", manifest(["1.0.0", "1.1.0-beta.1"])), null)
+test("a stable version is not sent to a newer prerelease, and does not call itself the latest", () => {
+  // Still not pointed at the alpha, but "the latest release" would be false while it exists.
+  const decision = decideBanner("1.0.0", manifest(["1.0.0", "1.1.0-beta.1"]))
+  assert.equal(decision.kind, "current")
+  assert.equal(decision.latestKind, "stable")
+})
+
+test("only a prerelease that is actually newer narrows the claim", () => {
+  const decision = decideBanner("1.0.0", manifest(["0.9.0-beta.1", "1.0.0"]))
+  assert.equal(decision.latestKind, "release")
 })
 
 test("a prerelease is told about any newer release, stable or not", () => {
@@ -44,8 +53,10 @@ test("a prerelease is told about any newer release, stable or not", () => {
   assert.equal(decideBanner("0.1.0-alpha.7", manifest(["0.1.0-alpha.7", "0.2.0"])).version, "0.2.0")
 })
 
-test("a prerelease newer than every published release is told nothing", () => {
-  assert.equal(decideBanner("0.3.0-alpha.1", manifest(["0.1.0", "0.2.0"])), null)
+test("a prerelease newer than every published release is current, not superseded", () => {
+  const decision = decideBanner("0.3.0-alpha.1", manifest(["0.1.0", "0.2.0"]))
+  assert.equal(decision.kind, "current")
+  assert.equal(decision.latestKind, "release")
 })
 
 test("the newest applicable version wins, whatever order the manifest lists", () => {
@@ -60,7 +71,7 @@ test("a relocation notice is shown, and its absence shows nothing", () => {
   assert.equal(decision.text, "These docs have moved.")
   assert.equal(decision.url, "https://gamingcouch.com")
 
-  assert.equal(decideBanner("1.0.0", manifest(["1.0.0"])), null)
+  assert.equal(decideBanner("1.0.0", manifest(["1.0.0"])).kind, "current")
 })
 
 test("a notice outranks a superseded-version banner", () => {
@@ -82,8 +93,13 @@ test("a manifest this page cannot interpret reports an unrun check, never silenc
   )
 })
 
-test("an empty version list is a readable manifest with nothing newer in it", () => {
-  assert.equal(decideBanner("1.0.0", { versions: [] }), null)
+test("a manifest naming no releases is unusable, not proof the reader is current", () => {
+  assert.equal(decideBanner("1.0.0", { versions: [] }).kind, "unusable")
+})
+
+test("a manifest listing only older releases still means the reader is current", () => {
+  // Unlike an empty list it says something, even having never heard of the reader's version.
+  assert.equal(decideBanner("1.0.0", { versions: ["0.9.0"] }).kind, "current")
 })
 
 test("a manifest shape this page predates still reports whatever it can read", () => {
@@ -206,4 +222,9 @@ test("an entry that names no readable version is not a release", () => {
 test("the comparison reads named entries too", () => {
   const manifest = { versions: ["1.0.0", { version: "2.0.0", url: "https://new.test/2.0.0/" }] }
   assert.equal(decideBanner("1.0.0", manifest).version, "2.0.0")
+})
+
+test("the current banner names the version, and says which kind of latest it means", () => {
+  assert.equal(currentText("1.2.0", "release"), "This documents version 1.2.0, the latest release.")
+  assert.equal(currentText("1.2.0", "stable"), "This documents version 1.2.0, the latest stable release.")
 })

@@ -4,6 +4,13 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-09-12
+### Changed
+- The banner renders on every page, not only where the documentation is superseded. A reader who is current sees a discreet line naming the version the page documents, and the version picker — previously reachable only from a page already out of date, though the newest page is where someone looking for an older release starts.
+- A page that is the newest **stable** release while a newer prerelease exists says "the latest stable release" rather than "the latest release". It still does not link to the prerelease: which releases a reader is pointed at has not changed.
+- A manifest whose `versions` is an empty list renders no banner and warns in the browser console instead. It names no releases while the page reading it is itself one, so nothing true can be said from it, and no reader can act on it. A `notice` is still shown from such a manifest — a frozen page must always be able to hear that the documentation moved.
+- Silence now means one thing: the page has nothing it can truthfully say. A manifest that 404s, a version that is not semver, and a manifest naming no releases all render nothing. It no longer means the reader is up to date — that is said out loud.
+
 ## [1.3.0] - 2026-09-12
 ### Added
 - The banner now reads the manifest and says when the documentation being read has been superseded. What counts as newer depends on the reader's own version: a page documenting a stable release names only a newer stable release, while a page documenting a prerelease names any newer release. The banner links to the same page under the newer version, falling back to that version's root when the page is not there.

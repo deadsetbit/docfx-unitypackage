@@ -7,7 +7,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { orderedVersions } from "../site-template/public/main.js"
+import { orderedVersions, pickerEntries } from "../site-template/public/main.js"
 
 test("offers every readable version, newest first", () => {
   const manifest = { versions: ["0.2.0", "1.0.0-rc.1", "0.10.0", "1.0.0"] }
@@ -22,4 +22,21 @@ test("a manifest with nothing readable offers nothing", () => {
   for (const manifest of [null, {}, { versions: "nope" }, { versions: [] }]) {
     assert.deepEqual(orderedVersions(manifest), [])
   }
+})
+
+const at = (version) => ({ version, url: `https://docs.test/${version}/` })
+
+test("a lone reachable version is below the floor, so no picker is offered", () => {
+  // The banner still renders; only the picker is left off.
+  assert.deepEqual(pickerEntries([at("1.0.0")]), [])
+  assert.deepEqual(pickerEntries([]), [])
+})
+
+test("two reachable versions are enough to choose between", () => {
+  const entries = [at("1.1.0"), at("1.0.0")]
+  assert.deepEqual(pickerEntries(entries), entries)
+})
+
+test("a version the manifest gives no address for is never offered", () => {
+  assert.deepEqual(pickerEntries([at("1.1.0"), { version: "1.0.0", url: null }]), [])
 })

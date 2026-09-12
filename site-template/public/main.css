@@ -64,3 +64,13 @@ footer .docs-version {
   border: 1px solid currentColor;
   border-radius: 0.2rem;
 }
+
+/* A statement of fact, not a warning: quieter than every other variant. */
+.docs-banner-current {
+  background: transparent;
+  color: #6c757d;
+}
+
+[data-bs-theme="dark"] .docs-banner-current {
+  color: #adb5bd;
+}
