@@ -120,22 +120,19 @@ export function decideBanner(version, manifest) {
   // A reader already on a prerelease is told about anything newer.
   const ownIsPrerelease = own.prerelease.length > 0
 
-  let readable = 0
+  const entries = versionEntries(manifest, null)
+  const readable = entries.length
+
   let newest = null
-  for (const candidate of manifest.versions) {
-    const parsed = parseVersion(candidate)
-    if (!parsed) {
+  for (const entry of entries) {
+    if (!ownIsPrerelease && parseVersion(entry.version).prerelease.length > 0) {
       continue
     }
-    readable += 1
-    if (!ownIsPrerelease && parsed.prerelease.length > 0) {
+    if (compareVersions(entry.version, version) !== 1) {
       continue
     }
-    if (compareVersions(candidate, version) !== 1) {
-      continue
-    }
-    if (newest === null || compareVersions(candidate, newest) === 1) {
-      newest = candidate
+    if (newest === null || compareVersions(entry.version, newest) === 1) {
+      newest = entry.version
     }
   }
 
@@ -148,15 +145,34 @@ export function decideBanner(version, manifest) {
   return newest === null ? null : { kind: "superseded", version: newest }
 }
 
-// Every version the manifest names that this page can read, newest first. The banner's
-// picker offers these, so a reader can reach any release rather than only the newest.
-export function orderedVersions(manifest) {
+// One reading of the versions list, used by both the decision and the picker.
+//
+// An entry is either a bare version, which lives under the site root, or an object that names
+// its own URL. That is the difference between a manifest that can only say the documentation
+// moved and one that can still route every reader to it: the page has no other way to learn a
+// new address, because the one it was built with is in its HTML and cannot be changed.
+export function versionEntries(manifest, siteRoot) {
   if (!manifest || typeof manifest !== "object" || !Array.isArray(manifest.versions)) {
     return []
   }
-  return manifest.versions
-    .filter((candidate) => parseVersion(candidate) !== null)
-    .sort((a, b) => compareVersions(b, a))
+  // A whole site that has moved says so once here, rather than on every entry.
+  const root = withTrailingSlash(safeUrl(manifest.siteRoot)) || siteRoot
+
+  const entries = []
+  for (const candidate of manifest.versions) {
+    const version = typeof candidate === "string" ? candidate : candidate && candidate.version
+    if (parseVersion(version) === null) {
+      continue
+    }
+    const named = typeof candidate === "object" && candidate !== null ? withTrailingSlash(safeUrl(candidate.url)) : null
+    entries.push({ version, url: named || (root ? `${root}${version}/` : null) })
+  }
+  return entries.sort((a, b) => compareVersions(b.version, a.version))
+}
+
+// Kept for the picker's labels, which need nothing but the names.
+export function orderedVersions(manifest, siteRoot) {
+  return versionEntries(manifest, siteRoot).map((entry) => entry.version)
 }
 
 // --- where the banner points ------------------------------------------------
@@ -164,6 +180,13 @@ export function orderedVersions(manifest) {
 // Only ever an http(s) link. The manifest arrives over the network, and `javascript:` or
 // `data:` in an href would execute in the documentation's own origin on a page that can never
 // be corrected.
+function withTrailingSlash(url) {
+  if (!url) {
+    return null
+  }
+  return url.endsWith("/") ? url : `${url}/`
+}
+
 function safeUrl(value) {
   if (typeof value !== "string") {
     return null
@@ -171,9 +194,8 @@ function safeUrl(value) {
   return /^https?:\/\//i.test(value) ? value : null
 }
 
-export function newerVersionUrls(siteRoot, version, pagePath) {
-  const root = `${siteRoot}${version}/`
-  return { root, deep: pagePath ? `${root}${pagePath}` : root }
+export function newerVersionUrls(base, pagePath) {
+  return { root: base, deep: pagePath ? `${base}${pagePath}` : base }
 }
 
 function pagePathWithinRelease(siteRoot, version, href) {
@@ -213,24 +235,25 @@ function showBanner(variant, text, href, linkText) {
 
 // A select rather than a list of links: every release ever published ends up in here, and the
 // banner has to stay one line.
-function addVersionPicker(banner, facts, versions) {
-  if (versions.length < 2) {
+function addVersionPicker(banner, facts, entries) {
+  const reachable = entries.filter((entry) => entry.url)
+  if (reachable.length < 2) {
     return
   }
   const picker = document.createElement("select")
   picker.className = "docs-banner-picker"
   picker.setAttribute("aria-label", "Choose a documentation version")
 
-  for (const candidate of versions) {
+  for (const entry of reachable) {
     const option = document.createElement("option")
-    option.value = candidate
-    option.textContent = candidate === facts.version ? `${candidate} (this page)` : candidate
-    option.selected = candidate === facts.version
+    option.value = entry.version
+    option.textContent = entry.version === facts.version ? `${entry.version} (this page)` : entry.version
+    option.selected = entry.version === facts.version
     picker.append(option)
   }
   // The page's own version may have been unpublished from the manifest, in which case nothing
   // above is selected and the picker would silently show someone else's version as current.
-  if (!versions.includes(facts.version)) {
+  if (!reachable.some((entry) => entry.version === facts.version)) {
     const option = document.createElement("option")
     option.value = facts.version
     option.textContent = `${facts.version} (this page)`
@@ -239,11 +262,14 @@ function addVersionPicker(banner, facts, versions) {
   }
 
   picker.addEventListener("change", async () => {
-    const target = picker.value
-    if (target === facts.version) {
+    const chosen = reachable.find((entry) => entry.version === picker.value)
+    if (!chosen || chosen.version === facts.version) {
       return
     }
-    window.location.href = await resolvableTarget(facts, target)
+    const target = await resolvableTarget(facts, chosen)
+    if (target) {
+      window.location.href = target
+    }
   })
   banner.append(" ", picker)
 }
@@ -261,10 +287,12 @@ async function fetchManifest(manifestUrl) {
 
 // The same page under another version where it still exists, and that version's root where it
 // does not. Resolved by asking, because only the server knows which pages a release has.
-async function resolvableTarget(facts, version) {
+async function resolvableTarget(facts, entry) {
+  if (!entry || !entry.url) {
+    return null
+  }
   const urls = newerVersionUrls(
-    facts.siteRoot,
-    version,
+    entry.url,
     pagePathWithinRelease(facts.siteRoot, facts.version, window.location.href),
   )
   if (urls.deep === urls.root) {
@@ -274,6 +302,7 @@ async function resolvableTarget(facts, version) {
     const response = await fetch(urls.deep, { method: "HEAD" })
     return response.ok ? urls.deep : urls.root
   } catch {
+    // Another host may refuse the probe outright; the version's own root still resolves.
     return urls.root
   }
 }
@@ -281,12 +310,15 @@ async function resolvableTarget(facts, version) {
 // The banner is shown pointing at the newer version's root, which always exists, and the link
 // is then upgraded to the same page under that version if it is still there. Done this way
 // round the reader never waits on the second request, and never sees a link that 404s.
-async function preferTheSamePage(banner, facts, version) {
+async function preferTheSamePage(banner, facts, entry) {
   const link = banner.querySelector("a")
   if (!link) {
     return
   }
-  link.href = await resolvableTarget(facts, version)
+  const target = await resolvableTarget(facts, entry)
+  if (target) {
+    link.href = target
+  }
 }
 
 async function checkForNewerVersion() {
@@ -319,14 +351,17 @@ async function checkForNewerVersion() {
     return
   }
 
+  const entries = versionEntries(manifest, facts.siteRoot)
+  const target = entries.find((entry) => entry.version === decision.version)
+
   const banner = showBanner(
     "superseded",
     `This documents version ${facts.version}. Version ${decision.version} is newer.`,
-    `${facts.siteRoot}${decision.version}/`,
+    target ? target.url : null,
     `Go to ${decision.version}`,
   )
-  addVersionPicker(banner, facts, orderedVersions(manifest))
-  await preferTheSamePage(banner, facts, decision.version)
+  addVersionPicker(banner, facts, entries)
+  await preferTheSamePage(banner, facts, target)
 }
 
 function whenReady(run) {

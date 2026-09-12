@@ -6,7 +6,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { compareVersions, decideBanner, newerVersionUrls } from "../site-template/public/main.js"
+import { compareVersions, decideBanner, newerVersionUrls, versionEntries } from "../site-template/public/main.js"
 
 const manifest = (versions, extra = {}) => ({
   schemaVersion: 1,
@@ -140,13 +140,70 @@ test("versions that break semver's grammar are not releases", () => {
   assert.equal(compareVersions("1.0.0-alpha..1", "1.0.0-alpha.1"), null)
 })
 
-test("links to the same page under the newer version, with the version root as fallback", () => {
-  const urls = newerVersionUrls("https://example.test/docs/", "1.1.0", "manual/getting-started.html")
+test("links to the same page under a version, with that version's root as fallback", () => {
+  const urls = newerVersionUrls("https://example.test/docs/1.1.0/", "manual/getting-started.html")
   assert.equal(urls.deep, "https://example.test/docs/1.1.0/manual/getting-started.html")
   assert.equal(urls.root, "https://example.test/docs/1.1.0/")
 })
 
 test("the fallback is used when the page has no path of its own", () => {
-  const urls = newerVersionUrls("https://example.test/docs/", "1.1.0", "")
+  const urls = newerVersionUrls("https://example.test/docs/1.1.0/", "")
   assert.equal(urls.deep, urls.root)
+})
+
+const SITE = "https://old.test/docs/"
+
+test("a bare version lives under the site root the page was built with", () => {
+  assert.deepEqual(versionEntries({ versions: ["1.0.0"] }, SITE), [
+    { version: "1.0.0", url: "https://old.test/docs/1.0.0/" },
+  ])
+})
+
+test("an entry may name its own address, and that wins", () => {
+  // The page's own site root is in its HTML and can never be changed, so this is the only way
+  // a frozen page can be told the documentation now lives somewhere else.
+  const manifest = { versions: [{ version: "2.0.0", url: "https://new.test/2.0.0/" }] }
+  assert.deepEqual(versionEntries(manifest, SITE), [
+    { version: "2.0.0", url: "https://new.test/2.0.0/" },
+  ])
+})
+
+test("a whole site that has moved says so once", () => {
+  const manifest = { siteRoot: "https://new.test/docs/", versions: ["1.0.0", "2.0.0"] }
+  assert.deepEqual(versionEntries(manifest, SITE).map((e) => e.url), [
+    "https://new.test/docs/2.0.0/",
+    "https://new.test/docs/1.0.0/",
+  ])
+})
+
+test("a named address without a trailing slash still joins correctly", () => {
+  const manifest = { versions: [{ version: "2.0.0", url: "https://new.test/2.0.0" }] }
+  assert.equal(versionEntries(manifest, SITE)[0].url, "https://new.test/2.0.0/")
+})
+
+test("addresses the manifest supplies are only ever http(s)", () => {
+  const manifest = {
+    siteRoot: "javascript:alert(1)",
+    versions: [{ version: "2.0.0", url: "javascript:alert(1)" }, "1.0.0"],
+  }
+  // Both fall back to the root the page was built with rather than becoming a link.
+  assert.deepEqual(versionEntries(manifest, SITE).map((e) => e.url), [
+    "https://old.test/docs/2.0.0/",
+    "https://old.test/docs/1.0.0/",
+  ])
+})
+
+test("bare and named entries mix, and still order by precedence", () => {
+  const manifest = { versions: ["1.0.0", { version: "2.0.0", url: "https://new.test/2.0.0/" }, "1.5.0"] }
+  assert.deepEqual(versionEntries(manifest, SITE).map((e) => e.version), ["2.0.0", "1.5.0", "1.0.0"])
+})
+
+test("an entry that names no readable version is not a release", () => {
+  const manifest = { versions: [{ url: "https://new.test/x/" }, { version: "latest" }, null, 7] }
+  assert.deepEqual(versionEntries(manifest, SITE), [])
+})
+
+test("the comparison reads named entries too", () => {
+  const manifest = { versions: ["1.0.0", { version: "2.0.0", url: "https://new.test/2.0.0/" }] }
+  assert.equal(decideBanner("1.0.0", manifest).version, "2.0.0")
 })
