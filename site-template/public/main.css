@@ -26,3 +26,29 @@ footer .docs-version {
   background: #2b3035;
   color: #dee2e6;
 }
+
+/* Superseded and relocated carry weight the inconclusive notice deliberately does not: the
+   page is telling the reader something it knows, not apologising for not knowing. */
+.docs-banner-superseded {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+[data-bs-theme="dark"] .docs-banner-superseded {
+  background: #332701;
+  color: #ffda6a;
+}
+
+.docs-banner-notice {
+  background: #cfe2ff;
+  color: #052c65;
+}
+
+[data-bs-theme="dark"] .docs-banner-notice {
+  background: #031633;
+  color: #9ec5fe;
+}
+
+.docs-banner a {
+  color: inherit;
+}

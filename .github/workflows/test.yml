@@ -1,0 +1,22 @@
+name: Test
+
+# The banner's comparison rules are frozen into every page the moment it is published, so they
+# are the one part of this action that cannot be corrected for documentation already out. They
+# run here on every change rather than only in the dispatch-only build verification.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  banner-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Shell-expanded rather than `--test tests/`: the directory form resolves as a module
+      # path and exits without running anything, which would be a green job that tested nothing.
+      - run: node --test tests/*.test.mjs
