@@ -95,8 +95,16 @@ test("a manifest this page cannot interpret reports an unrun check, never silenc
   )
 })
 
-test("an empty version list is a readable manifest with nothing newer in it", () => {
-  assert.equal(decideBanner("1.0.0", { versions: [] }).kind, "current")
+test("a manifest naming no releases is unusable, not proof the reader is current", () => {
+  // The page reading it is a published release, so a manifest listing none of them contradicts
+  // it. Reported to the console rather than the reader: nobody visiting the docs can act on it.
+  assert.equal(decideBanner("1.0.0", { versions: [] }).kind, "unusable")
+})
+
+test("a manifest listing only older releases still means the reader is current", () => {
+  // Unlike an empty list, this one says something, and what it says is that nothing is newer --
+  // even when it has never heard of the reader's own version.
+  assert.equal(decideBanner("1.0.0", { versions: ["0.9.0"] }).kind, "current")
 })
 
 test("a manifest shape this page predates still reports whatever it can read", () => {

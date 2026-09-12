@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 - The banner renders on every page, not only where the documentation is superseded. A reader who is current now sees a discreet line naming the version the page documents, and — this is the point of it — the version picker, which was previously reachable only from a page that was already out of date. Somebody looking for an older release's documentation starts on the newest page, which was the one page offering no way off it.
 - A page that is the newest **stable** release while a newer prerelease exists says "the latest stable release" rather than "the latest release". It still does not link to the prerelease: which releases a reader is pointed at has not changed, only whether the page says anything at all.
-- Silence now means one thing only: the page has no version to name. A manifest that 404s and a package version that is not semver still show nothing, both being a site without the feature rather than a reader who is up to date.
+- A manifest whose `versions` is an empty list renders no banner and warns in the browser console instead. It names no releases while the page reading it is itself a published release, so nothing true can be said from it, and it is a site that is misconfigured rather than anything a reader can act on. A `notice` is still shown from such a manifest — a page that has been frozen must always be able to hear that the documentation moved.
+- Silence to the reader now means one thing: the page has nothing it can truthfully say. A manifest that 404s, a package version that is not semver, and a manifest naming no releases all still render nothing. What silence no longer means is that the reader is up to date — that is said out loud.
 
 ## [1.3.0] - 2026-09-12
 ### Added

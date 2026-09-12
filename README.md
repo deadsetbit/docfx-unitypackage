@@ -190,7 +190,10 @@ already-published page something new. Another repository writes it, so its shape
   the folder that release is published in, or an object with that `version` and the `url` it
   lives at. `v1.0.0` or `latest` are not versions and are ignored. A manifest whose `versions`
   is missing, is not an array, or names nothing readable makes the page report a check it could
-  not run, rather than imply the reader is up to date.
+  not run, rather than imply the reader is up to date. An empty `versions` is different again:
+  it contradicts the page reading it, which is itself a published release, so the page renders
+  nothing and warns in the browser console. That is a misconfigured site rather than something
+  a reader of the documentation can act on.
 - `siteRoot` is optional and replaces the root every bare entry is resolved against. **This is
   what makes the documentation relocatable.** A page can only ever fetch the manifest from the
   address baked into its own HTML, so the old location must keep serving this one file — but

@@ -128,6 +128,14 @@ export function decideBanner(version, manifest) {
     return unchecked
   }
 
+  // A manifest that names no releases contradicts the page reading it, which is itself a
+  // published release. Nothing true can be said from it — "the latest release" would be a claim
+  // with no evidence behind it — and it is a site that is misconfigured rather than a reader who
+  // needs telling, so the page says nothing and the console carries it to whoever can fix it.
+  if (manifest.versions.length === 0) {
+    return { kind: "unusable" }
+  }
+
   // What counts as newer depends on the reader's own version: a stable reader is told only
   // about a newer stable, because nudging them onto an alpha is worse than leaving them alone.
   // A reader already on a prerelease is told about anything newer.
@@ -369,6 +377,12 @@ async function checkForNewerVersion() {
 
   const decision = decideBanner(facts.version, manifest)
   if (decision === null) {
+    return
+  }
+  if (decision.kind === "unusable") {
+    console.warn(
+      `Version banner: the manifest at ${facts.manifestUrl} names no versions, so this page cannot say whether it is current.`,
+    )
     return
   }
   if (decision.kind === "unchecked") {
