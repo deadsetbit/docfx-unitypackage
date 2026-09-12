@@ -166,7 +166,7 @@ runs:
             *) echo "::error::'$url' is not an http(s) URL."; exit 1 ;;
           esac
           case "$url" in
-            *[\"\<\>\&\ ]*) echo "::error::'$url' contains a character that cannot appear in an HTML attribute."; exit 1 ;;
+            *[\"\<\>\&]*|*[[:space:]]*) echo "::error::'$url' contains a character that cannot appear in an HTML attribute."; exit 1 ;;
           esac
         done
 
@@ -205,11 +205,11 @@ runs:
           footer="$footer<span class=\"docs-facts\">$facts</span>"
         fi
 
-        # One line, JSON-quoted. Four later steps insert into the generated docfx.json by
+        # One line, JSON-quoted. Five later steps insert into the generated docfx.json by
         # line number, so the footer must not grow a second line.
         {
           echo 'app_footer_json<<APP_FOOTER_EOF'
-          jq -Rn --arg html "$footer" '$html'
+          jq -n --arg html "$footer" '$html'
           echo 'APP_FOOTER_EOF'
         } >> "$GITHUB_ENV"
 
@@ -313,17 +313,42 @@ runs:
           sed -i '5i\        "filter": "manual/filter.yaml",' Documentation~/docfx.json
         fi
 
-    # The four steps above insert into docfx.json by line number. Nothing keeps those
-    # numbers true as the generated JSON changes, so the one cheap way to notice is to
-    # refuse to build a docfx.json that no longer parses.
+    # The five steps above insert into docfx.json by line number. Nothing keeps those
+    # numbers true as the generated JSON changes, so this refuses to build a docfx.json
+    # that no longer parses, and — because an insert can land in the wrong object and
+    # still parse — checks that each inserted key sits where its step meant to put it.
     - name: Check the generated docfx.json still parses
       shell: bash
       run: |
-        python3 -c 'import json,sys; json.load(open("Documentation~/docfx.json"))' || {
-          echo "::error::the generated docfx.json is not valid JSON — a line-numbered insert landed wrong."
-          cat -n Documentation~/docfx.json
-          exit 1
+        python3 - <<'PY' || { echo "::error::the generated docfx.json is not what the inserts meant to write."; cat -n Documentation~/docfx.json; exit 1; }
+        import json, sys
+
+        with open("Documentation~/docfx.json") as handle:
+            config = json.load(handle)
+
+        build = config.get("build", {})
+        # Each insert is conditional on a file the package may not have, so these say where a
+        # key must be when it is there rather than that it must be there.
+        homes = {
+            "filter": config.get("metadata", [{}])[0],
+            "_appFaviconPath": build.get("globalMetadata", {}),
+            "_appLogoPath": build.get("globalMetadata", {}),
+            "_disableToc": build.get("fileMetadata", {}),
+            "_layout": build.get("fileMetadata", {}),
         }
+
+        def find(node, key):
+            if isinstance(node, dict):
+                return key in node or any(find(value, key) for value in node.values())
+            if isinstance(node, list):
+                return any(find(item, key) for item in node)
+            return False
+
+        wrong = [key for key, home in homes.items() if find(config, key) and key not in home]
+        if wrong:
+            print("inserted in the wrong object: {0}".format(", ".join(sorted(wrong))), file=sys.stderr)
+            sys.exit(1)
+        PY
 
     # Build docfx site through the Documentation~ folder
 

@@ -149,6 +149,7 @@ jobs:
           }
           JSON
           printf '# Base URL Check\n\nFixture package.\n' > README.md
+          printf '# Changelog\n\n## [1.2.3] - 2026-01-01\nFixture.\n' > CHANGELOG.md
           printf 'MIT\n' > LICENSE
           mkdir -p Runtime
           printf 'namespace Example { public class Thing { } }\n' > Runtime/Thing.cs
