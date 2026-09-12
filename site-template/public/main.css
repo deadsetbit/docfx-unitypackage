@@ -64,3 +64,15 @@ footer .docs-version {
   border: 1px solid currentColor;
   border-radius: 0.2rem;
 }
+
+/* The reader is already current. A statement of fact rather than a warning, and quieter even
+   than the unchecked notice, which at least reports that something did not work. It is there to
+   be found rather than read: on most pages it is what carries the version picker. */
+.docs-banner-current {
+  background: transparent;
+  color: #6c757d;
+}
+
+[data-bs-theme="dark"] .docs-banner-current {
+  color: #adb5bd;
+}

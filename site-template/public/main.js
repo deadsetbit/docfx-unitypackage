@@ -6,9 +6,13 @@
 //
 // A failed fetch is not evidence that anything moved. The reader may be offline or behind a
 // proxy, and a page cannot tell that from a site that is genuinely gone, so the wording for
-// that case claims nothing beyond the check not having run. It also does not fall silent:
-// once there is a manifest to compare against, rendering nothing is the claim that nothing
-// newer was found.
+// that case claims nothing beyond the check not having run.
+//
+// Once there is a readable manifest and a version to compare it against, the banner always
+// renders — quietly when the reader is already current, naming the version either way. Where
+// there are other releases to reach, it carries the picker, which is the only route from one
+// release's documentation to another's: a current page that rendered nothing would be the one
+// page a reader cannot navigate out of, and it is the page they start on.
 //
 // A 404 is the exception, and the only failure the page can read anything into: the server
 // answered, and what it said is that this site publishes no manifest. That is a site without
@@ -16,6 +20,15 @@
 // inconclusive and says so.
 
 const UNCHECKED_TEXT = "The check for a newer version of this documentation did not run."
+
+// What "latest" may claim depends on what the comparison below was allowed to look at. A stable
+// reader is never pointed at a newer prerelease, so on that page the newest release and the
+// newest release *it was offered* are different things, and only the narrower claim is true.
+export function currentText(version, latestKind) {
+  return latestKind === "stable"
+    ? `This documents version ${version}, the latest stable release.`
+    : `This documents version ${version}, the latest release.`
+}
 
 // --- version precedence -----------------------------------------------------
 //
@@ -124,11 +137,15 @@ export function decideBanner(version, manifest) {
   const readable = entries.length
 
   let newest = null
+  let skippedPrerelease = false
   for (const entry of entries) {
-    if (!ownIsPrerelease && parseVersion(entry.version).prerelease.length > 0) {
+    if (compareVersions(entry.version, version) !== 1) {
       continue
     }
-    if (compareVersions(entry.version, version) !== 1) {
+    if (!ownIsPrerelease && parseVersion(entry.version).prerelease.length > 0) {
+      // Not pointed at, but not forgotten either: it is why this page may not call itself the
+      // latest release outright.
+      skippedPrerelease = true
       continue
     }
     if (newest === null || compareVersions(entry.version, newest) === 1) {
@@ -142,7 +159,11 @@ export function decideBanner(version, manifest) {
     return unchecked
   }
 
-  return newest === null ? null : { kind: "superseded", version: newest }
+  if (newest !== null) {
+    return { kind: "superseded", version: newest }
+  }
+
+  return { kind: "current", latestKind: skippedPrerelease ? "stable" : "release" }
 }
 
 // One reading of the versions list, used by both the decision and the picker.
@@ -233,11 +254,19 @@ function showBanner(variant, text, href, linkText) {
   return banner
 }
 
+// Which versions the picker may offer. Below two there is nothing to choose between — the
+// reader's own version is one of them — so the banner goes out without a picker rather than
+// with a control that leads nowhere.
+export function pickerEntries(entries) {
+  const reachable = entries.filter((entry) => entry.url)
+  return reachable.length < 2 ? [] : reachable
+}
+
 // A select rather than a list of links: every release ever published ends up in here, and the
 // banner has to stay one line.
 function addVersionPicker(banner, facts, entries) {
-  const reachable = entries.filter((entry) => entry.url)
-  if (reachable.length < 2) {
+  const reachable = pickerEntries(entries)
+  if (reachable.length === 0) {
     return
   }
   const picker = document.createElement("select")
@@ -352,6 +381,12 @@ async function checkForNewerVersion() {
   }
 
   const entries = versionEntries(manifest, facts.siteRoot)
+
+  if (decision.kind === "current") {
+    addVersionPicker(showBanner("current", currentText(facts.version, decision.latestKind)), facts, entries)
+    return
+  }
+
   const target = entries.find((entry) => entry.version === decision.version)
 
   const banner = showBanner(

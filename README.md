@@ -165,6 +165,11 @@ page under the newer version where it still exists, and to that version's root w
 not. A manifest may also carry a `notice`, which is shown instead and is how documentation that
 has moved or been retired says so.
 
+When nothing newer applies the banner still renders, quietly. It names the version the page
+documents and calls it the latest release — or the latest **stable** release, when a newer
+prerelease exists that a stable reader is deliberately not being sent to. A page that showed
+nothing here would be the one page carrying no way to reach another release's documentation.
+
 The manifest is the only mutable input, so it is the only thing that can teach an
 already-published page something new. Another repository writes it, so its shape is a contract:
 
@@ -203,10 +208,12 @@ already-published page something new. Another repository writes it, so its shape
 - Unknown keys are ignored, so the manifest can gain fields without silencing pages already
   published. That is the whole reason a page tolerates rather than validates it.
 
-When a newer version applies, the banner also carries a compact version picker listing every
-version the manifest names, so a reader can reach any release rather than only the newest.
+The banner carries a compact version picker listing every version the manifest names, so a
+reader can reach any release rather than only the newest — on the current release's pages as
+much as on a superseded one's, that being where someone looking for older documentation starts.
 Choosing one goes to the same page under that version where it exists, and to that version's
-root where it does not.
+root where it does not. Below two reachable versions the picker is left off, there being nowhere
+else to go.
 
 `home_url` is the escape hatch that does not depend on any of this working. It is baked into
 every page as a plain link, so it survives with the HTML and needs no fetch, no CORS and no
