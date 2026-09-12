@@ -165,10 +165,9 @@ page under the newer version where it still exists, and to that version's root w
 not. A manifest may also carry a `notice`, which is shown instead and is how documentation that
 has moved or been retired says so.
 
-When nothing newer applies the banner still renders, quietly. It names the version the page
-documents and calls it the latest release — or the latest **stable** release, when a newer
-prerelease exists that a stable reader is deliberately not being sent to. A page that showed
-nothing here would be the one page carrying no way to reach another release's documentation.
+When nothing newer applies the banner still renders, quietly, naming the version the page
+documents and calling it the latest release — or the latest **stable** release, when a newer
+prerelease exists that a stable reader is deliberately not sent to.
 
 The manifest is the only mutable input, so it is the only thing that can teach an
 already-published page something new. Another repository writes it, so its shape is a contract:
@@ -190,10 +189,9 @@ already-published page something new. Another repository writes it, so its shape
   the folder that release is published in, or an object with that `version` and the `url` it
   lives at. `v1.0.0` or `latest` are not versions and are ignored. A manifest whose `versions`
   is missing, is not an array, or names nothing readable makes the page report a check it could
-  not run, rather than imply the reader is up to date. An empty `versions` is different again:
-  it contradicts the page reading it, which is itself a published release, so the page renders
-  nothing and warns in the browser console. That is a misconfigured site rather than something
-  a reader of the documentation can act on.
+  not run, rather than imply the reader is up to date. An empty `versions` contradicts the page
+  reading it, which is itself a release, so the page renders nothing and warns in the console —
+  no reader can act on it.
 - `siteRoot` is optional and replaces the root every bare entry is resolved against. **This is
   what makes the documentation relocatable.** A page can only ever fetch the manifest from the
   address baked into its own HTML, so the old location must keep serving this one file — but
@@ -211,12 +209,11 @@ already-published page something new. Another repository writes it, so its shape
 - Unknown keys are ignored, so the manifest can gain fields without silencing pages already
   published. That is the whole reason a page tolerates rather than validates it.
 
-The banner carries a compact version picker listing every version the manifest names, so a
-reader can reach any release rather than only the newest — on the current release's pages as
-much as on a superseded one's, that being where someone looking for older documentation starts.
-Choosing one goes to the same page under that version where it exists, and to that version's
-root where it does not. Below two reachable versions the picker is left off, there being nowhere
-else to go.
+The banner carries a compact version picker listing every version the manifest names, on the
+current release's pages as much as on a superseded one's — that being where someone looking for
+older documentation starts. Choosing one goes to the same page under that version where it
+exists, and to that version's root where it does not. Below two reachable versions it is left
+off.
 
 `home_url` is the escape hatch that does not depend on any of this working. It is baked into
 every page as a plain link, so it survives with the HTML and needs no fetch, no CORS and no

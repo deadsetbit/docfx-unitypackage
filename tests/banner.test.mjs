@@ -37,9 +37,7 @@ test("the current stable version is told that it is current", () => {
 })
 
 test("a stable version is not sent to a newer prerelease, and does not call itself the latest", () => {
-  // Nudging someone from stable onto an alpha is worse than leaving them alone, so the banner
-  // still does not point at it. But "the latest release" would be false while that alpha
-  // exists, so the page makes the narrower claim it can stand behind.
+  // Still not pointed at the alpha, but "the latest release" would be false while it exists.
   const decision = decideBanner("1.0.0", manifest(["1.0.0", "1.1.0-beta.1"]))
   assert.equal(decision.kind, "current")
   assert.equal(decision.latestKind, "stable")
@@ -47,7 +45,7 @@ test("a stable version is not sent to a newer prerelease, and does not call itse
 
 test("only a prerelease that is actually newer narrows the claim", () => {
   const decision = decideBanner("1.0.0", manifest(["0.9.0-beta.1", "1.0.0"]))
-  assert.equal(decision.latestKind, "release", "an older prerelease was never a candidate to be held back")
+  assert.equal(decision.latestKind, "release")
 })
 
 test("a prerelease is told about any newer release, stable or not", () => {
@@ -58,7 +56,7 @@ test("a prerelease is told about any newer release, stable or not", () => {
 test("a prerelease newer than every published release is current, not superseded", () => {
   const decision = decideBanner("0.3.0-alpha.1", manifest(["0.1.0", "0.2.0"]))
   assert.equal(decision.kind, "current")
-  assert.equal(decision.latestKind, "release", "a prerelease reader is offered every release, so nothing was held back")
+  assert.equal(decision.latestKind, "release")
 })
 
 test("the newest applicable version wins, whatever order the manifest lists", () => {
@@ -96,14 +94,11 @@ test("a manifest this page cannot interpret reports an unrun check, never silenc
 })
 
 test("a manifest naming no releases is unusable, not proof the reader is current", () => {
-  // The page reading it is a published release, so a manifest listing none of them contradicts
-  // it. Reported to the console rather than the reader: nobody visiting the docs can act on it.
   assert.equal(decideBanner("1.0.0", { versions: [] }).kind, "unusable")
 })
 
 test("a manifest listing only older releases still means the reader is current", () => {
-  // Unlike an empty list, this one says something, and what it says is that nothing is newer --
-  // even when it has never heard of the reader's own version.
+  // Unlike an empty list it says something, even having never heard of the reader's version.
   assert.equal(decideBanner("1.0.0", { versions: ["0.9.0"] }).kind, "current")
 })
 
@@ -150,7 +145,6 @@ test("a version the manifest does not list still compares", () => {
 test("a package that does not use semver simply does not take part", () => {
   // The version is the package's own data. A package the action merely finds unusual is a site
   // without the feature, not a check that went wrong — the same reading as a 404 manifest.
-  // This is the one silence left: a banner that cannot name a version has nothing to say.
   assert.equal(decideBanner("not-a-version", manifest(["1.0.0"])), null)
   assert.equal(decideBanner("1.2", manifest(["1.0.0"])), null)
 })

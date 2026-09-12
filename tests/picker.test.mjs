@@ -27,8 +27,7 @@ test("a manifest with nothing readable offers nothing", () => {
 const at = (version) => ({ version, url: `https://docs.test/${version}/` })
 
 test("a lone reachable version is below the floor, so no picker is offered", () => {
-  // The banner still renders on a site with one release. The picker is what is left off, the
-  // only version it could list being the one the reader is already on.
+  // The banner still renders; only the picker is left off.
   assert.deepEqual(pickerEntries([at("1.0.0")]), [])
   assert.deepEqual(pickerEntries([]), [])
 })
@@ -39,6 +38,5 @@ test("two reachable versions are enough to choose between", () => {
 })
 
 test("a version the manifest gives no address for is never offered", () => {
-  // Its option would be a dead end, and a picker of one is no picker at all.
   assert.deepEqual(pickerEntries([at("1.1.0"), { version: "1.0.0", url: null }]), [])
 })

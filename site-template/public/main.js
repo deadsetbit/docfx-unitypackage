@@ -8,11 +8,9 @@
 // proxy, and a page cannot tell that from a site that is genuinely gone, so the wording for
 // that case claims nothing beyond the check not having run.
 //
-// Once there is a readable manifest and a version to compare it against, the banner always
-// renders — quietly when the reader is already current, naming the version either way. Where
-// there are other releases to reach, it carries the picker, which is the only route from one
-// release's documentation to another's: a current page that rendered nothing would be the one
-// page a reader cannot navigate out of, and it is the page they start on.
+// Once there is a readable manifest and a version to compare, the banner always renders. The
+// picker it carries is the only route between releases, and the current page is where a reader
+// looking for an older one starts.
 //
 // A 404 is the exception, and the only failure the page can read anything into: the server
 // answered, and what it said is that this site publishes no manifest. That is a site without
@@ -21,9 +19,8 @@
 
 const UNCHECKED_TEXT = "The check for a newer version of this documentation did not run."
 
-// What "latest" may claim depends on what the comparison below was allowed to look at. A stable
-// reader is never pointed at a newer prerelease, so on that page the newest release and the
-// newest release *it was offered* are different things, and only the narrower claim is true.
+// A stable reader is never pointed at a newer prerelease, so on that page only the narrower
+// claim is true.
 export function currentText(version, latestKind) {
   return latestKind === "stable"
     ? `This documents version ${version}, the latest stable release.`
@@ -128,10 +125,8 @@ export function decideBanner(version, manifest) {
     return unchecked
   }
 
-  // A manifest that names no releases contradicts the page reading it, which is itself a
-  // published release. Nothing true can be said from it — "the latest release" would be a claim
-  // with no evidence behind it — and it is a site that is misconfigured rather than a reader who
-  // needs telling, so the page says nothing and the console carries it to whoever can fix it.
+  // A manifest naming no releases contradicts the page reading it, which is one. Nothing true
+  // can be said from it, and no reader can fix it, so it goes to the console instead.
   if (manifest.versions.length === 0) {
     return { kind: "unusable" }
   }
@@ -151,8 +146,7 @@ export function decideBanner(version, manifest) {
       continue
     }
     if (!ownIsPrerelease && parseVersion(entry.version).prerelease.length > 0) {
-      // Not pointed at, but not forgotten either: it is why this page may not call itself the
-      // latest release outright.
+      // Not pointed at, but it is why this page cannot call itself the latest release.
       skippedPrerelease = true
       continue
     }
@@ -262,9 +256,7 @@ function showBanner(variant, text, href, linkText) {
   return banner
 }
 
-// Which versions the picker may offer. Below two there is nothing to choose between — the
-// reader's own version is one of them — so the banner goes out without a picker rather than
-// with a control that leads nowhere.
+// Below two there is nothing to choose between, the reader's own version being one of them.
 export function pickerEntries(entries) {
   const reachable = entries.filter((entry) => entry.url)
   return reachable.length < 2 ? [] : reachable
