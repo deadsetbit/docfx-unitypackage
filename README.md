@@ -158,6 +158,56 @@ answered, and what it said is that this site publishes no manifest. That is a si
 the feature rather than a check that went wrong, so the page stays quiet — which is also what
 lets a site adopt the banner before it starts publishing a manifest.
 
+When the manifest does load, the page compares its own baked version against the versions it
+lists. A page documenting a stable release names only a newer **stable** release; a page
+documenting a prerelease names any newer release, stable or not. The banner links to the same
+page under the newer version where it still exists, and to that version's root where it does
+not. A manifest may also carry a `notice`, which is shown instead and is how documentation that
+has moved or been retired says so.
+
+The manifest is the only mutable input, so it is the only thing that can teach an
+already-published page something new. Another repository writes it, so its shape is a contract:
+
+```json
+{
+  "siteRoot": "https://example.com/docs/",
+  "versions": [
+    "1.3.0",
+    "1.4.0",
+    {"version": "1.5.0-rc.1", "url": "https://example.com/preview/1.5.0-rc.1/"}
+  ],
+  "latestStable": "1.4.0",
+  "notice": {"text": "These docs have moved.", "url": "https://example.com/docs"}
+}
+```
+
+- `versions` is required. An entry is either a bare semver version, which is also the name of
+  the folder that release is published in, or an object with that `version` and the `url` it
+  lives at. `v1.0.0` or `latest` are not versions and are ignored. A manifest whose `versions`
+  is missing, is not an array, or names nothing readable makes the page report a check it could
+  not run, rather than imply the reader is up to date.
+- `siteRoot` is optional and replaces the root every bare entry is resolved against. **This is
+  what makes the documentation relocatable.** A page can only ever fetch the manifest from the
+  address baked into its own HTML, so the old location must keep serving this one file — but
+  everything that file points at can move. Without it a manifest can only say the documentation
+  moved; with it, the banner and the picker route every reader to where it went.
+- `latestStable` is informational. Each page recomputes what is newest from `versions`, because
+  a page that is already published can never be corrected if this is ever wrong.
+- `notice` is optional. When present it must be an object with a non-empty `text`, and is shown
+  instead of the superseded banner — it is how documentation that has moved or been retired
+  says so. A `notice` that is present but malformed is reported as a check that did not run,
+  never skipped silently.
+- Every URL the manifest supplies — `siteRoot`, an entry's `url`, and the notice's `url` — is
+  used only when it is `http(s)`, and anything else falls back to the page's own site root.
+  The manifest arrives over the network and these become links.
+- Unknown keys are ignored, so the manifest can gain fields without silencing pages already
+  published. That is the whole reason a page tolerates rather than validates it.
+
+When a newer version applies, the banner also carries a compact version picker listing every
+version the manifest names, so a reader can reach any release rather than only the newest.
+Choosing one goes to the same page under that version where it exists, and to that version's
+root where it does not.
+
 `home_url` is the escape hatch that does not depend on any of this working. It is baked into
 every page as a plain link, so it survives with the HTML and needs no fetch, no CORS and no
 uptime from whatever it points at.
