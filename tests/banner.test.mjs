@@ -72,9 +72,53 @@ test("a notice outranks a superseded-version banner", () => {
 
 test("a manifest this page cannot interpret reports an unrun check, never silence", () => {
   // Silence already means "nothing newer exists", so it cannot also mean "I could not tell".
-  assert.equal(decideBanner("1.0.0", { schemaVersion: 99, versions: ["2.0.0"] }).kind, "unchecked")
   assert.equal(decideBanner("1.0.0", {}).kind, "unchecked")
-  assert.equal(decideBanner("1.0.0", { schemaVersion: 1, versions: "nonsense" }).kind, "unchecked")
+  assert.equal(decideBanner("1.0.0", { versions: "nonsense" }).kind, "unchecked")
+  assert.equal(decideBanner("1.0.0", null).kind, "unchecked")
+  assert.equal(
+    decideBanner("1.0.0", { versions: ["latest", "stable"] }).kind,
+    "unchecked",
+    "a list that names releases none of which parse was read and not understood",
+  )
+})
+
+test("an empty version list is a readable manifest with nothing newer in it", () => {
+  assert.equal(decideBanner("1.0.0", { versions: [] }), null)
+})
+
+test("a manifest shape this page predates still reports whatever it can read", () => {
+  // Frozen pages have to degrade, not hard-fail, or a later format change silences every page
+  // ever published. Unknown keys are ignored; the keys this page knows still work.
+  const future = { schemaVersion: 7, channels: {}, versions: ["1.0.0", "2.0.0"] }
+  assert.equal(decideBanner("1.0.0", future).version, "2.0.0")
+})
+
+test("a notice is read before anything else could rule it out", () => {
+  // Docs moving is the one thing the manifest must always be able to say to a frozen page.
+  const future = { schemaVersion: 7, notice: { text: "These docs have moved." } }
+  assert.equal(decideBanner("1.0.0", future).kind, "notice")
+  assert.equal(
+    decideBanner("not-a-version", { notice: { text: "These docs have moved." } }).kind,
+    "notice",
+    "and it does not depend on the page's own version being readable",
+  )
+})
+
+test("a notice the page cannot read is reported, not stepped over", () => {
+  const superseding = ["1.0.0", "2.0.0"]
+  assert.equal(decideBanner("1.0.0", { versions: superseding, notice: "moved" }).kind, "unchecked")
+  assert.equal(decideBanner("1.0.0", { versions: superseding, notice: { url: "https://x.test" } }).kind, "unchecked")
+  assert.equal(decideBanner("1.0.0", { versions: superseding, notice: { text: 123 } }).kind, "unchecked")
+})
+
+test("a notice link is only ever http(s)", () => {
+  // The manifest arrives over the network; a javascript: or data: href would execute in the
+  // documentation's own origin, on a page that can never be corrected.
+  const withUrl = (url) => decideBanner("1.0.0", { notice: { text: "moved", url } })
+  assert.equal(withUrl("javascript:alert(1)").url, null)
+  assert.equal(withUrl("data:text/html,<script>alert(1)</script>").url, null)
+  assert.equal(withUrl("https://gamingcouch.com").url, "https://gamingcouch.com")
+  assert.equal(withUrl("javascript:alert(1)").text, "moved", "the notice itself still shows")
 })
 
 test("a version the manifest does not list still compares", () => {
@@ -82,8 +126,18 @@ test("a version the manifest does not list still compares", () => {
   assert.equal(decideBanner("1.0.0", manifest(["1.1.0"])).version, "1.1.0")
 })
 
-test("an unreadable version string reports an unrun check rather than guessing", () => {
-  assert.equal(decideBanner("not-a-version", manifest(["1.0.0"])).kind, "unchecked")
+test("a package that does not use semver simply does not take part", () => {
+  // The version is the package's own data. A package the action merely finds unusual is a site
+  // without the feature, not a check that went wrong — the same reading as a 404 manifest.
+  assert.equal(decideBanner("not-a-version", manifest(["1.0.0"])), null)
+  assert.equal(decideBanner("1.2", manifest(["1.0.0"])), null)
+})
+
+test("versions that break semver's grammar are not releases", () => {
+  // 01.2.0 compared equal to 1.2.0 under a looser pattern, so a real newer release could lose.
+  assert.equal(compareVersions("01.0.0", "1.0.0"), null)
+  assert.equal(compareVersions(" 1.0.0 ", "1.0.0"), null)
+  assert.equal(compareVersions("1.0.0-alpha..1", "1.0.0-alpha.1"), null)
 })
 
 test("links to the same page under the newer version, with the version root as fallback", () => {

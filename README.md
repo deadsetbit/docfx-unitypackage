@@ -166,19 +166,33 @@ not. A manifest may also carry a `notice`, which is shown instead and is how doc
 has moved or been retired says so.
 
 The manifest is the only mutable input, so it is the only thing that can teach an
-already-published page something new:
+already-published page something new. Another repository writes it, so its shape is a contract:
 
 ```json
 {
-  "schemaVersion": 1,
   "versions": ["1.3.0", "1.4.0", "1.5.0-rc.1"],
   "latestStable": "1.4.0",
   "notice": {"text": "These docs have moved.", "url": "https://example.com/docs"}
 }
 ```
 
-`notice` is optional, and `latestStable` is informational — each page recomputes what is newest
-from `versions`, because a page can never be corrected if that summary is ever wrong.
+- `versions` is required. Each entry must be a bare semver version that is also the name of the
+  folder that release is published in — `v1.0.0` or `latest` are not versions and are ignored.
+  A manifest whose `versions` is missing, is not an array, or names nothing readable makes the
+  page report a check it could not run, rather than imply the reader is up to date.
+- `latestStable` is informational. Each page recomputes what is newest from `versions`, because
+  a page that is already published can never be corrected if this is ever wrong.
+- `notice` is optional. When present it must be an object with a non-empty `text`, and is shown
+  instead of the superseded banner — it is how documentation that has moved or been retired
+  says so. Its `url` is optional and is used only when it is `http(s)`. A `notice` that is
+  present but malformed is reported as a check that did not run, never skipped silently.
+- Unknown keys are ignored, so the manifest can gain fields without silencing pages already
+  published. That is the whole reason a page tolerates rather than validates it.
+
+When a newer version applies, the banner also carries a compact version picker listing every
+version the manifest names, so a reader can reach any release rather than only the newest.
+Choosing one goes to the same page under that version where it exists, and to that version's
+root where it does not.
 
 `home_url` is the escape hatch that does not depend on any of this working. It is baked into
 every page as a plain link, so it survives with the HTML and needs no fetch, no CORS and no

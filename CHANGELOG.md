@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - The banner now reads the manifest and says when the documentation being read has been superseded. What counts as newer depends on the reader's own version: a page documenting a stable release names only a newer stable release, while a page documenting a prerelease names any newer release. The banner links to the same page under the newer version, falling back to that version's root when the page is not there.
 - A manifest may carry a `notice` (`{"text": ..., "url": ...}`), shown in place of the superseded banner. It is how documentation that has genuinely moved or been retired says so — a statement the manifest makes, never inferred from a failed request.
-- A manifest whose `schemaVersion` this page does not know is treated as a check that did not run, rather than as nothing to report. Silence means "nothing newer exists", so it cannot also mean "this could not be read".
+- A compact version picker in the banner, listing every version the manifest names, so a reader can reach any release rather than only the newest.
+- A manifest the page cannot read — no `versions` array, nothing readable in it, or a malformed `notice` — is reported as a check that did not run. Silence means "nothing newer exists", so it cannot also mean "this could not be read". Unknown keys are ignored, so the manifest can gain fields without silencing pages already published.
+- A `notice` link is followed only when it is `http(s)`. The manifest arrives over the network, and a `javascript:` or `data:` href would execute in the documentation's own origin on a page that can never be corrected.
+- A package whose version is not semver takes no part in the comparison and shows nothing, rather than warning on every page forever.
 - `node --test` unit tests for the comparison rules, run in CI on every push. The rules are frozen into each page as it is published, so they are the part of the action that can never be corrected for documentation already out.
 
 ### Changed

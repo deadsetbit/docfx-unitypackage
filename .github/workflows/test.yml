@@ -17,6 +17,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      # Shell-expanded rather than `--test tests/`: the directory form resolves as a module
-      # path and exits without running anything, which would be a green job that tested nothing.
+      # Shell-expanded rather than `--test tests/`: the directory form resolves that path as a
+      # module and dies with MODULE_NOT_FOUND before running any test.
       - run: node --test tests/*.test.mjs
