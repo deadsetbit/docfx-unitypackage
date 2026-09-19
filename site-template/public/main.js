@@ -19,12 +19,40 @@
 
 const UNCHECKED_TEXT = "The check for a newer version of this documentation did not run."
 
+// --- what the banner says ---------------------------------------------------
+//
+// Segments rather than one string, because the version numbers are bold and a bold run inside
+// text has to be built as an element. Not innerHTML: one of the strings rendered here is a
+// notice's text, which arrives over the network from the manifest, and markup injected into a
+// page that can never be rebuilt can never be taken out again.
+
+const plain = (text) => ({ text, bold: false })
+const strong = (text) => ({ text, bold: true })
+
 // A stable reader is never pointed at a newer prerelease, so on that page only the narrower
 // claim is true.
-export function currentText(version, latestKind) {
-  return latestKind === "stable"
-    ? `This documents version ${version}, the latest stable release.`
-    : `This documents version ${version}, the latest release.`
+export function currentSegments(version, latestKind) {
+  return [
+    plain("This documents version "),
+    strong(version),
+    plain(latestKind === "stable" ? ", the latest stable release." : ", the latest release."),
+  ]
+}
+
+export function supersededSegments(version, newer) {
+  return [
+    plain("This documents version "),
+    strong(version),
+    plain(". Version "),
+    strong(newer),
+    plain(" is newer."),
+  ]
+}
+
+// Sticky reserves its space where the element sits, so a banner that is to come to rest under
+// the footer rather than cover it has to be last in the body. main.css says why these two.
+export function isPinned(variant) {
+  return variant === "superseded" || variant === "notice"
 }
 
 // --- version precedence -----------------------------------------------------
@@ -221,9 +249,16 @@ export function newerVersionUrls(base, pagePath) {
   return { root: base, deep: pagePath ? `${base}${pagePath}` : base }
 }
 
-function pagePathWithinRelease(siteRoot, version, href) {
-  const prefix = `${siteRoot}${version}/`
-  return href.startsWith(prefix) ? href.slice(prefix.length) : ""
+// A page is served both from its own version folder and from the alias the site publishes
+// beside them, and the alias is the address shared links use. Both address the same build, so
+// either prefix answers the question the picker is asking: which page is the reader on.
+export function pagePathWithinRelease(siteRoot, version, href) {
+  for (const prefix of [`${siteRoot}${version}/`, `${siteRoot}latest/`]) {
+    if (href.startsWith(prefix)) {
+      return href.slice(prefix.length)
+    }
+  }
+  return ""
 }
 
 // --- the page ---------------------------------------------------------------
@@ -241,18 +276,30 @@ function readBakedFacts() {
   return { version, manifestUrl, siteRoot: manifestUrl.replace(/versions\.json$/, "") }
 }
 
-function showBanner(variant, text, href, linkText) {
+function showBanner(variant, segments, href, linkText) {
   const banner = document.createElement("div")
   banner.className = `docs-banner docs-banner-${variant}`
   banner.setAttribute("role", "status")
-  banner.textContent = text
+  for (const segment of segments) {
+    if (segment.bold) {
+      const bold = document.createElement("strong")
+      bold.textContent = segment.text
+      banner.append(bold)
+    } else {
+      banner.append(segment.text)
+    }
+  }
   if (href) {
     const link = document.createElement("a")
     link.href = href
     link.textContent = linkText || "Go to the current documentation"
     banner.append(" ", link)
   }
-  document.body.insertBefore(banner, document.body.firstChild)
+  if (isPinned(variant)) {
+    document.body.append(banner)
+  } else {
+    document.body.insertBefore(banner, document.body.firstChild)
+  }
   return banner
 }
 
@@ -360,7 +407,7 @@ async function checkForNewerVersion() {
   try {
     manifest = await fetchManifest(facts.manifestUrl)
   } catch {
-    showBanner("unchecked", UNCHECKED_TEXT)
+    showBanner("unchecked", [plain(UNCHECKED_TEXT)])
     return
   }
   if (manifest === null) {
@@ -378,18 +425,18 @@ async function checkForNewerVersion() {
     return
   }
   if (decision.kind === "unchecked") {
-    showBanner("unchecked", decision.text)
+    showBanner("unchecked", [plain(decision.text)])
     return
   }
   if (decision.kind === "notice") {
-    showBanner("notice", decision.text, decision.url)
+    showBanner("notice", [plain(decision.text)], decision.url)
     return
   }
 
   const entries = versionEntries(manifest, facts.siteRoot)
 
   if (decision.kind === "current") {
-    addVersionPicker(showBanner("current", currentText(facts.version, decision.latestKind)), facts, entries)
+    addVersionPicker(showBanner("current", currentSegments(facts.version, decision.latestKind)), facts, entries)
     return
   }
 
@@ -397,7 +444,7 @@ async function checkForNewerVersion() {
 
   const banner = showBanner(
     "superseded",
-    `This documents version ${facts.version}. Version ${decision.version} is newer.`,
+    supersededSegments(facts.version, decision.version),
     target ? target.url : null,
     `Go to ${decision.version}`,
   )

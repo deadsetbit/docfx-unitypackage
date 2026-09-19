@@ -113,7 +113,7 @@ Specifically, the root of your project should contain:
 |---|---|---|---|
 | `github_token` | no | | Token used to read the running repository's Pages configuration. |
 | `base_url` | no | *(empty)* | Public base URL of the built site, with a trailing slash, for example `https://owner.github.io/repo/`. |
-| `site_root_url` | no | *(empty)* | Root of the documentation site, with a trailing slash, for example `https://owner.github.io/repo/`. Only differs from `base_url` when the site publishes one folder per release. |
+| `site_root_url` | no | *(empty)* | Root of the documentation site, with a trailing slash, for example `https://owner.github.io/repo/`. Only differs from `base_url` when the site publishes one folder per release. The version manifest and each page's canonical are resolved against it. |
 | `home_url` | no | *(empty)* | Absolute URL baked into every page as a permanent link home. |
 
 `base_url` is what to set when the site is **deployed to a different repository than the one the workflow runs in**, or when the running repository has no Pages configuration to read — a private repository on a plan without Pages, for instance. It is used in both places the action needs the site's own address: the `sitemap`/`xref` entries of the generated `docfx.json`, and the meta refresh written into the built `index.html`.
@@ -215,13 +215,28 @@ older documentation starts. Choosing one goes to the same page under that versio
 exists, and to that version's root where it does not. Below two reachable versions it is left
 off.
 
+The banner that carries all this is pinned to the bottom of the viewport when it says the
+documentation is superseded or carries a `notice`, and stays there while the reader scrolls.
+A reader arriving on an anchored deep link lands mid-page on first paint, so a banner left at
+the top of the document is never on screen at all. The quieter `current` and `unchecked`
+variants stay in flow at the top, because neither asks the reader to do anything.
+
+Every built page also carries a `<link rel="canonical">` naming its own path under
+`<site_root_url>latest/`, so `1.4.0/manual/index.html` points at `latest/manual/index.html`.
+A version folder is never rebuilt, so the only address a page can name that still resolves
+after the next release is a moving one. Publishing that alias is the site's job, the same way
+publishing the manifest is: the action's part is baking in an address that is still true on a
+page nobody will ever touch again. Inside the `latest/` copy the tag is self-referential, which
+is what it should be there, at no extra cost. Set no `site_root_url` and no canonical is
+written, there being no version folders to alias and every page already at its final address.
+
 `home_url` is the escape hatch that does not depend on any of this working. It is baked into
 every page as a plain link, so it survives with the HTML and needs no fetch, no CORS and no
 uptime from whatever it points at.
 
 ```yaml
       - name: Build
-        uses: deadsetbit/docfx-unitypackage@v1.2.0
+        uses: deadsetbit/docfx-unitypackage@v1.5.0
         with:
           base_url: https://owner.github.io/repo/1.4.0/
           site_root_url: https://owner.github.io/repo/

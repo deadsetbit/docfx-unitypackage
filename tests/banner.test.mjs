@@ -6,7 +6,16 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { compareVersions, currentText, decideBanner, newerVersionUrls, versionEntries } from "../site-template/public/main.js"
+import {
+  compareVersions,
+  currentSegments,
+  decideBanner,
+  isPinned,
+  newerVersionUrls,
+  pagePathWithinRelease,
+  supersededSegments,
+  versionEntries,
+} from "../site-template/public/main.js"
 
 const manifest = (versions, extra = {}) => ({
   schemaVersion: 1,
@@ -162,6 +171,14 @@ test("links to the same page under a version, with that version's root as fallba
   assert.equal(urls.root, "https://example.test/docs/1.1.0/")
 })
 
+test("a page served from the alias still knows which page it is", () => {
+  const root = "https://docs.test/"
+  assert.equal(pagePathWithinRelease(root, "1.1.0", "https://docs.test/1.1.0/manual/index.html"), "manual/index.html")
+  assert.equal(pagePathWithinRelease(root, "1.1.0", "https://docs.test/latest/manual/index.html"), "manual/index.html")
+  assert.equal(pagePathWithinRelease(root, "1.1.0", "https://docs.test/latest/"), "")
+  assert.equal(pagePathWithinRelease(root, "1.1.0", "https://elsewhere.test/manual/"), "")
+})
+
 test("the fallback is used when the page has no path of its own", () => {
   const urls = newerVersionUrls("https://example.test/docs/1.1.0/", "")
   assert.equal(urls.deep, urls.root)
@@ -224,7 +241,27 @@ test("the comparison reads named entries too", () => {
   assert.equal(decideBanner("1.0.0", manifest).version, "2.0.0")
 })
 
+const reads = (segments) => segments.map((segment) => segment.text).join("")
+const bolded = (segments) => segments.filter((segment) => segment.bold).map((segment) => segment.text)
+
 test("the current banner names the version, and says which kind of latest it means", () => {
-  assert.equal(currentText("1.2.0", "release"), "This documents version 1.2.0, the latest release.")
-  assert.equal(currentText("1.2.0", "stable"), "This documents version 1.2.0, the latest stable release.")
+  assert.equal(reads(currentSegments("1.2.0", "release")), "This documents version 1.2.0, the latest release.")
+  assert.equal(reads(currentSegments("1.2.0", "stable")), "This documents version 1.2.0, the latest stable release.")
+})
+
+test("the version a page documents is bold, and the prose around it is not", () => {
+  assert.deepEqual(bolded(currentSegments("1.2.0", "release")), ["1.2.0"])
+})
+
+test("the superseded banner reads as before, with both versions bold", () => {
+  const segments = supersededSegments("1.0.0", "1.1.0")
+  assert.equal(reads(segments), "This documents version 1.0.0. Version 1.1.0 is newer.")
+  assert.deepEqual(bolded(segments), ["1.0.0", "1.1.0"])
+})
+
+test("the variants that ask something of the reader are the pinned ones", () => {
+  assert.equal(isPinned("superseded"), true)
+  assert.equal(isPinned("notice"), true)
+  assert.equal(isPinned("current"), false)
+  assert.equal(isPinned("unchecked"), false)
 })

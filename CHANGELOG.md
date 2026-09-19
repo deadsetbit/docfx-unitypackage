@@ -4,6 +4,15 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-09-19
+### Added
+- Every built page carries a `<link rel="canonical">` naming its own path under `<site_root_url>latest/`. A version folder is never rebuilt, so the only address it can name that still resolves after the next release is a moving one. Requires `site_root_url`; without it there are no version folders and nothing to alias.
+
+### Changed
+- The `superseded` and `notice` banners are pinned to the bottom of the viewport and stay there while the reader scrolls. Both were previously inserted at the top of the document, where a reader arriving on an anchored deep link never saw them at all: the browser jumps to the heading on first paint. `current` and `unchecked` are unchanged, because neither asks the reader to do anything.
+- The banner and the picker recognise a page served from `<site_root_url>latest/`, not only one served from its own version folder. Both address the same build, and the alias is what a shared link uses, so a reader who arrived that way and then picks another version now gets the same page under it rather than that version's front door.
+- Version numbers are bold in the banner. They are built as elements rather than markup, because one of the strings rendered this way is a `notice`'s text, which arrives over the network from the manifest.
+
 ## [1.4.0] - 2026-09-12
 ### Changed
 - The banner renders on every page, not only where the documentation is superseded. A reader who is current sees a discreet line naming the version the page documents, and the version picker — previously reachable only from a page already out of date, though the newest page is where someone looking for an older release starts.

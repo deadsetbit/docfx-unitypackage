@@ -23,7 +23,8 @@ inputs:
       https://owner.github.io/repo/. When the site publishes one folder per release,
       base_url points at this release's folder and this points at the root above it. The
       version manifest the superseded-version banner reads is resolved against it, and the
-      resulting absolute URL is baked into every page. Left empty, no banner is baked.
+      resulting absolute URL is baked into every page, as is each page's canonical under
+      <site_root_url>latest/. Left empty, neither the banner nor the canonical is baked.
     required: false
     default: ''
   home_url:
@@ -378,3 +379,57 @@ runs:
         fi
         case "$url" in */) ;; *) url="$url/" ;; esac
         sed -i '/<\/head>/i\      <meta http-equiv="refresh" content="0;URL='"$url"manual/'">' _site/index.html
+
+    # A version folder is never rebuilt, so the only address it can name that still resolves
+    # after the next release is a moving one. `latest/` is the alias the site publishes beside
+    # the version folders; inside that copy the same tag is self-referential, at no extra cost.
+    # Without site_root_url there are no version folders and nothing to alias.
+    #
+    # The URL needs no checking here: the footer step above refuses a site_root_url carrying
+    # anything that cannot appear in an HTML attribute.
+    - name: Point every page's canonical at the latest alias
+      shell: bash
+      env:
+        SITE_ROOT_URL: ${{ inputs.site_root_url }}
+      run: |
+        set -euo pipefail
+        if [ -z "$SITE_ROOT_URL" ]; then
+          echo "No site_root_url is set, so no canonical link is baked."
+          exit 0
+        fi
+        python3 - <<'PY'
+        import os
+        import pathlib
+        import re
+        import sys
+        import urllib.parse
+
+        site_root = os.environ["SITE_ROOT_URL"]
+        if not site_root.endswith("/"):
+            site_root += "/"
+        alias = site_root + "latest/"
+
+        # Zero-width, at the start of the line holding the closing tag, so the insert reads the
+        # same as the meta refresh above it and the original line is left as DocFX wrote it.
+        before_head_end = re.compile(r"(?im)^(?=[ \t]*</head>)")
+
+        written = 0
+        for page in sorted(pathlib.Path("_site").rglob("*.html")):
+            # newline="" so a page keeps the line endings it was built with.
+            text = page.read_text(encoding="utf-8", newline="")
+            # toc.html and the search fragments are navigation, not pages, and have no head.
+            if not before_head_end.search(text):
+                continue
+            # Page paths carry spaces: the action turns 'Third Party Notices.md' into a page.
+            # Quoting also rules out every character that could break out of the attribute.
+            href = alias + urllib.parse.quote(page.relative_to("_site").as_posix())
+            tag = '      <link rel="canonical" href="{0}">\n'.format(href)
+            text = before_head_end.sub(lambda match: tag, text, count=1)
+            page.write_text(text, encoding="utf-8", newline="")
+            written += 1
+
+        if written == 0:
+            print("::error::no built page has a </head> to carry a canonical link.")
+            sys.exit(1)
+        print("{0} pages point their canonical at {1}".format(written, alias))
+        PY
