@@ -5,8 +5,8 @@ name: Verify build inputs
 # the branch that renames it — which is the only time this workflow is wanted.
 #
 # Proves the three URL inputs reach the built site: base_url into the sitemap and the meta
-# refresh, site_root_url into the manifest URL baked on every page, and home_url into the
-# permanent link baked beside it.
+# refresh, site_root_url into the manifest URL baked on every page and into each page's
+# canonical, and home_url into the permanent link baked beside it.
 #
 # This repository has no Pages configuration. Without base_url the action's URL lookup
 # (`gh api repos/$GITHUB_REPOSITORY/pages`) fails and, because composite run steps stop on
@@ -118,6 +118,33 @@ jobs:
 
           echo "$checked pages carry all three baked facts."
 
+      - name: Assert every page's canonical names its own path under the latest alias
+        shell: bash
+        env:
+          SITE_ROOT_URL: ${{ inputs.site_root_url }}
+        run: |
+          root="$SITE_ROOT_URL"
+          case "$root" in */) ;; *) root="$root/" ;; esac
+
+          checked=0
+          wrong=0
+          while IFS= read -r -d '' page; do
+            checked=$((checked + 1))
+            # No fixture page's name needs percent-encoding, so the path compares literally.
+            needle="<link rel=\"canonical\" href=\"${root}latest/${page#_site/}\">"
+            grep -qF "$needle" "$page" || { echo "$page is missing: $needle"; wrong=1; }
+            # One per page. Two canonicals say nothing at all to a crawler. `|| true`
+            # because a zero count exits 1, which under errexit would take the step with it
+            # and lose every page after this one.
+            found=$(grep -cF 'rel="canonical"' "$page" || true)
+            test "$found" = "1" || { echo "$page carries $found canonical links"; wrong=1; }
+          done < <(find _site -name '*.html' -not -path '_site/public/*' -not -name 'toc.html' -print0)
+
+          test "$checked" -gt 0 || { echo "no pages were built"; exit 1; }
+          test "$wrong" -eq 0 || exit 1
+
+          echo "$checked pages name their own path under ${root}latest/."
+
       - name: Assert the banner script shipped and reads the baked facts
         shell: bash
         run: |
@@ -168,7 +195,13 @@ jobs:
             echo "a manifest URL was baked with no site_root_url set"
             exit 1
           fi
+          # The canonical names an alias of the site root, so without one there is nothing it
+          # could truthfully point at.
+          if grep -rqF 'rel="canonical"' _site --include='*.html'; then
+            echo "a canonical was baked with no site_root_url set"
+            exit 1
+          fi
           grep -qF 'data-docs-version="1.2.3"' _site/api/index.html || {
             echo "the version is missing from a built page"; exit 1;
           }
-          echo "the site built, the version shipped, and no manifest URL was baked."
+          echo "the site built, the version shipped, and neither a manifest URL nor a canonical was baked."

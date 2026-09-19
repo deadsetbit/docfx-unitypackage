@@ -27,6 +27,22 @@ footer .docs-version {
   color: #dee2e6;
 }
 
+/* Superseded and notice are pinned to the bottom of the viewport; current and unchecked stay
+   in flow at the top, neither asking the reader to do anything. A reader arriving on an
+   anchored deep link lands mid-page on first paint, so a banner at the top of the document is
+   never on screen at all. The bottom rather than above the header, because DocFX offsets both
+   sidebars by a hardcoded 60px from the top. Sticky as the last element in the body, so the
+   space it takes is reserved at the end of the page and the footer is never covered. The
+   z-index matches the header's, keeping the mobile table-of-contents drawer (1045) above it. */
+.docs-banner-superseded,
+.docs-banner-notice {
+  position: sticky;
+  bottom: 0;
+  z-index: 1030;
+  border-top: 1px solid currentColor;
+  border-bottom: 0;
+}
+
 /* Superseded and relocated carry weight the inconclusive notice deliberately does not: the
    page is telling the reader something it knows, not apologising for not knowing. */
 .docs-banner-superseded {
