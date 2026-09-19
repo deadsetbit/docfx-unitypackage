@@ -415,8 +415,10 @@ runs:
 
         written = 0
         for page in sorted(pathlib.Path("_site").rglob("*.html")):
-            # newline="" so a page keeps the line endings it was built with.
-            text = page.read_text(encoding="utf-8", newline="")
+            # newline="" so a page keeps the line endings it was built with. Through
+            # Path.open, because read_text and write_text only took the argument in 3.13.
+            with page.open(encoding="utf-8", newline="") as handle:
+                text = handle.read()
             # toc.html and the search fragments are navigation, not pages, and have no head.
             if not before_head_end.search(text):
                 continue
@@ -425,7 +427,8 @@ runs:
             href = alias + urllib.parse.quote(page.relative_to("_site").as_posix())
             tag = '      <link rel="canonical" href="{0}">\n'.format(href)
             text = before_head_end.sub(lambda match: tag, text, count=1)
-            page.write_text(text, encoding="utf-8", newline="")
+            with page.open("w", encoding="utf-8", newline="") as handle:
+                handle.write(text)
             written += 1
 
         if written == 0:
