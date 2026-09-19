@@ -10,9 +10,22 @@ footer .docs-version {
   font-variant-numeric: tabular-nums;
 }
 
+/* Pinned to the bottom of the viewport, every variant of it. A reader arriving on an anchored
+   deep link lands mid-page on first paint, so a banner at the top of the document is never on
+   screen at all, and on every other page scrolling takes it away. Which version you are
+   reading, and the picker for changing it, are worth the line of viewport wherever you are in
+   the page.
+
+   The bottom rather than above the header, because DocFX offsets both sidebars by a hardcoded
+   60px from the top. Sticky as the last element in the body, so the space it takes is reserved
+   at the end of the page and the footer is never covered. The z-index matches the header's,
+   keeping the mobile table-of-contents drawer (1045) above it. */
 .docs-banner {
+  position: sticky;
+  bottom: 0;
+  z-index: 1030;
   padding: 0.6rem 1rem;
-  border-bottom: 1px solid currentColor;
+  border-top: 1px solid currentColor;
   text-align: center;
   font-size: 0.9rem;
 }
@@ -25,22 +38,6 @@ footer .docs-version {
 [data-bs-theme="dark"] .docs-banner-unchecked {
   background: #2b3035;
   color: #dee2e6;
-}
-
-/* Superseded and notice are pinned to the bottom of the viewport; current and unchecked stay
-   in flow at the top, neither asking the reader to do anything. A reader arriving on an
-   anchored deep link lands mid-page on first paint, so a banner at the top of the document is
-   never on screen at all. The bottom rather than above the header, because DocFX offsets both
-   sidebars by a hardcoded 60px from the top. Sticky as the last element in the body, so the
-   space it takes is reserved at the end of the page and the footer is never covered. The
-   z-index matches the header's, keeping the mobile table-of-contents drawer (1045) above it. */
-.docs-banner-superseded,
-.docs-banner-notice {
-  position: sticky;
-  bottom: 0;
-  z-index: 1030;
-  border-top: 1px solid currentColor;
-  border-bottom: 0;
 }
 
 /* Superseded and relocated carry weight the inconclusive notice deliberately does not: the
@@ -81,9 +78,10 @@ footer .docs-version {
   border-radius: 0.2rem;
 }
 
-/* A statement of fact, not a warning: quieter than every other variant. */
+/* A statement of fact, not a warning: quieter than every other variant. Opaque all the same,
+   the page now scrolling underneath it. The page's own background in either theme. */
 .docs-banner-current {
-  background: transparent;
+  background: var(--bs-body-bg, #fff);
   color: #6c757d;
 }
 

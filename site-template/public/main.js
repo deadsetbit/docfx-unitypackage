@@ -49,12 +49,6 @@ export function supersededSegments(version, newer) {
   ]
 }
 
-// Sticky reserves its space where the element sits, so a banner that is to come to rest under
-// the footer rather than cover it has to be last in the body. main.css says why these two.
-export function isPinned(variant) {
-  return variant === "superseded" || variant === "notice"
-}
-
 // --- version precedence -----------------------------------------------------
 //
 // Semver precedence, which no built-in comparison gives: a release outranks its own
@@ -295,11 +289,10 @@ function showBanner(variant, segments, href, linkText) {
     link.textContent = linkText || "Go to the current documentation"
     banner.append(" ", link)
   }
-  if (isPinned(variant)) {
-    document.body.append(banner)
-  } else {
-    document.body.insertBefore(banner, document.body.firstChild)
-  }
+  // Last in the body, which is what lets the stylesheet pin it: sticky reserves its space
+  // where the element sits, so from here it comes to rest under the footer at the end of the
+  // page rather than covering it.
+  document.body.append(banner)
   return banner
 }
 
