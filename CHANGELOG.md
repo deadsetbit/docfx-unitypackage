@@ -4,6 +4,11 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-09-19
+### Changed
+- Every banner variant is pinned to the bottom of the viewport, not only `superseded` and `notice`. Which version a page documents, and the picker for changing it, are worth a line of viewport wherever the reader is in the page, and a banner that pins or not depending on whether a network fetch succeeded is a layout that changes for reasons the reader cannot see.
+- `current` has an opaque background. It was transparent, which read fine in flow and would not over a page scrolling underneath it. It takes the page's own background in either theme.
+
 ## [1.5.1] - 2026-09-19
 ### Fixed
 - The canonical step no longer fails the build on Python older than 3.13. It passed `newline=""` to `Path.read_text` and `Path.write_text`, which only accept it from 3.13, so the step raised `TypeError` on the 3.12 that `ubuntu-latest` ships and took the build with it. It goes through `Path.open` now, which has always accepted it.

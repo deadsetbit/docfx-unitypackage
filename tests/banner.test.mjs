@@ -10,7 +10,6 @@ import {
   compareVersions,
   currentSegments,
   decideBanner,
-  isPinned,
   newerVersionUrls,
   pagePathWithinRelease,
   supersededSegments,
@@ -257,11 +256,4 @@ test("the superseded banner reads as before, with both versions bold", () => {
   const segments = supersededSegments("1.0.0", "1.1.0")
   assert.equal(reads(segments), "This documents version 1.0.0. Version 1.1.0 is newer.")
   assert.deepEqual(bolded(segments), ["1.0.0", "1.1.0"])
-})
-
-test("the variants that ask something of the reader are the pinned ones", () => {
-  assert.equal(isPinned("superseded"), true)
-  assert.equal(isPinned("notice"), true)
-  assert.equal(isPinned("current"), false)
-  assert.equal(isPinned("unchecked"), false)
 })

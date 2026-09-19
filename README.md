@@ -215,11 +215,11 @@ older documentation starts. Choosing one goes to the same page under that versio
 exists, and to that version's root where it does not. Below two reachable versions it is left
 off.
 
-The banner that carries all this is pinned to the bottom of the viewport when it says the
-documentation is superseded or carries a `notice`, and stays there while the reader scrolls.
-A reader arriving on an anchored deep link lands mid-page on first paint, so a banner left at
-the top of the document is never on screen at all. The quieter `current` and `unchecked`
-variants stay in flow at the top, because neither asks the reader to do anything.
+The banner is pinned to the bottom of the viewport and stays there while the reader scrolls,
+whichever of the four things it is saying. A reader arriving on an anchored deep link lands
+mid-page on first paint, so a banner left at the top of the document is never on screen at
+all, and on every other page scrolling takes it away. Which version you are reading, and the
+picker for changing it, are worth the line of viewport wherever you are in the page.
 
 Every built page also carries a `<link rel="canonical">` naming its own path under
 `<site_root_url>latest/`, so `1.4.0/manual/index.html` points at `latest/manual/index.html`.
@@ -236,7 +236,7 @@ uptime from whatever it points at.
 
 ```yaml
       - name: Build
-        uses: deadsetbit/docfx-unitypackage@v1.5.0
+        uses: deadsetbit/docfx-unitypackage@v1.6.0
         with:
           base_url: https://owner.github.io/repo/1.4.0/
           site_root_url: https://owner.github.io/repo/
