@@ -415,7 +415,8 @@ runs:
 
         written = 0
         for page in sorted(pathlib.Path("_site").rglob("*.html")):
-            text = page.read_text(encoding="utf-8")
+            # newline="" so a page keeps the line endings it was built with.
+            text = page.read_text(encoding="utf-8", newline="")
             # toc.html and the search fragments are navigation, not pages, and have no head.
             if not before_head_end.search(text):
                 continue
@@ -424,7 +425,7 @@ runs:
             href = alias + urllib.parse.quote(page.relative_to("_site").as_posix())
             tag = '      <link rel="canonical" href="{0}">\n'.format(href)
             text = before_head_end.sub(lambda match: tag, text, count=1)
-            page.write_text(text, encoding="utf-8")
+            page.write_text(text, encoding="utf-8", newline="")
             written += 1
 
         if written == 0:

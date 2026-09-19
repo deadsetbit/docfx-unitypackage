@@ -133,10 +133,10 @@ jobs:
             # No fixture page's name needs percent-encoding, so the path compares literally.
             needle="<link rel=\"canonical\" href=\"${root}latest/${page#_site/}\">"
             grep -qF "$needle" "$page" || { echo "$page is missing: $needle"; wrong=1; }
-            # One per page. Two canonicals say nothing at all to a crawler. `|| true`
-            # because a zero count exits 1, which under errexit would take the step with it
-            # and lose every page after this one.
-            found=$(grep -cF 'rel="canonical"' "$page" || true)
+            # One per page. Two canonicals say nothing at all to a crawler. Counted with
+            # `-o` and `wc`, because `grep -c` counts matching lines and would read two tags
+            # on one line as one.
+            found=$(grep -oF 'rel="canonical"' "$page" | wc -l | tr -d ' ')
             test "$found" = "1" || { echo "$page carries $found canonical links"; wrong=1; }
           done < <(find _site -name '*.html' -not -path '_site/public/*' -not -name 'toc.html' -print0)
 
