@@ -284,7 +284,7 @@ function showBanner(variant, segments, href, linkText) {
     const link = document.createElement("a")
     link.href = href
     link.textContent = linkText || "Go to the current documentation"
-    banner.append(" ", link)
+    banner.append(" ", link, ".")
   }
   // Last in the body, which is what lets the stylesheet pin it: sticky reserves its space
   // where the element sits, so from here it comes to rest under the footer at the end of the
@@ -300,7 +300,8 @@ export function pickerEntries(entries) {
 }
 
 // A select rather than a list of links: every release ever published ends up in here, and the
-// banner has to stay one line.
+// banner has to stay one line. It leads the banner, so it stays in one place whatever the text
+// beside it says.
 function addVersionPicker(banner, facts, entries) {
   const reachable = pickerEntries(entries)
   if (reachable.length === 0) {
@@ -337,7 +338,7 @@ function addVersionPicker(banner, facts, entries) {
       window.location.href = target
     }
   })
-  banner.append(" ", picker)
+  banner.prepend(picker, " ")
 }
 
 async function fetchManifest(manifestUrl) {
