@@ -30,23 +30,20 @@ const plain = (text) => ({ text, bold: false })
 const strong = (text) => ({ text, bold: true })
 
 // A stable reader is never pointed at a newer prerelease, so on that page only the narrower
-// claim is true.
-export function currentSegments(version, latestKind) {
-  return [
-    plain("This documents version "),
-    strong(version),
-    plain(latestKind === "stable" ? ", the latest stable release." : ", the latest release."),
-  ]
+// claim is true. The picker beside the text shows the page's own version as its selection, so
+// the text names the version only when there is no picker to show it.
+export function currentSegments(version, latestKind, namesVersion) {
+  const label = latestKind === "stable" ? "This is the latest stable version" : "This is the latest version"
+  return namesVersion ? [plain(`${label}, `), strong(version), plain(".")] : [plain(`${label}.`)]
 }
 
-export function supersededSegments(version, newer) {
-  return [
-    plain("This documents version "),
-    strong(version),
-    plain(". Version "),
-    strong(newer),
-    plain(" is newer."),
-  ]
+// The newer version is named by the link that follows.
+export function supersededSegments() {
+  return [plain("This is not the latest version.")]
+}
+
+export function supersededLinkText(newer) {
+  return `Go to latest version ${newer}`
 }
 
 // --- version precedence -----------------------------------------------------
@@ -274,21 +271,26 @@ function showBanner(variant, segments, href, linkText) {
   const banner = document.createElement("div")
   banner.className = `docs-banner docs-banner-${variant}`
   banner.setAttribute("role", "status")
+  // One box for the text, so on a narrow screen it wraps under the picker as a whole rather
+  // than leaving its last word on a line of its own.
+  const text = document.createElement("span")
+  text.className = "docs-banner-text"
   for (const segment of segments) {
     if (segment.bold) {
       const bold = document.createElement("strong")
       bold.textContent = segment.text
-      banner.append(bold)
+      text.append(bold)
     } else {
-      banner.append(segment.text)
+      text.append(segment.text)
     }
   }
   if (href) {
     const link = document.createElement("a")
     link.href = href
     link.textContent = linkText || "Go to the current documentation"
-    banner.append(" ", link)
+    text.append(" ", link, ".")
   }
+  banner.append(text)
   // Last in the body, which is what lets the stylesheet pin it: sticky reserves its space
   // where the element sits, so from here it comes to rest under the footer at the end of the
   // page rather than covering it.
@@ -303,7 +305,8 @@ export function pickerEntries(entries) {
 }
 
 // A select rather than a list of links: every release ever published ends up in here, and the
-// banner has to stay one line.
+// banner has to stay one line. It leads the banner, so it stays in one place whatever the text
+// beside it says.
 function addVersionPicker(banner, facts, entries) {
   const reachable = pickerEntries(entries)
   if (reachable.length === 0) {
@@ -316,7 +319,7 @@ function addVersionPicker(banner, facts, entries) {
   for (const entry of reachable) {
     const option = document.createElement("option")
     option.value = entry.version
-    option.textContent = entry.version === facts.version ? `${entry.version} (this page)` : entry.version
+    option.textContent = entry.version
     option.selected = entry.version === facts.version
     picker.append(option)
   }
@@ -325,7 +328,7 @@ function addVersionPicker(banner, facts, entries) {
   if (!reachable.some((entry) => entry.version === facts.version)) {
     const option = document.createElement("option")
     option.value = facts.version
-    option.textContent = `${facts.version} (this page)`
+    option.textContent = facts.version
     option.selected = true
     picker.insertBefore(option, picker.firstChild)
   }
@@ -340,7 +343,7 @@ function addVersionPicker(banner, facts, entries) {
       window.location.href = target
     }
   })
-  banner.append(" ", picker)
+  banner.prepend(picker, " ")
 }
 
 async function fetchManifest(manifestUrl) {
@@ -429,7 +432,12 @@ async function checkForNewerVersion() {
   const entries = versionEntries(manifest, facts.siteRoot)
 
   if (decision.kind === "current") {
-    addVersionPicker(showBanner("current", currentSegments(facts.version, decision.latestKind)), facts, entries)
+    const namesVersion = pickerEntries(entries).length === 0
+    addVersionPicker(
+      showBanner("current", currentSegments(facts.version, decision.latestKind, namesVersion)),
+      facts,
+      entries,
+    )
     return
   }
 
@@ -437,9 +445,9 @@ async function checkForNewerVersion() {
 
   const banner = showBanner(
     "superseded",
-    supersededSegments(facts.version, decision.version),
+    supersededSegments(),
     target ? target.url : null,
-    `Go to ${decision.version}`,
+    supersededLinkText(decision.version),
   )
   addVersionPicker(banner, facts, entries)
   await preferTheSamePage(banner, facts, target)
