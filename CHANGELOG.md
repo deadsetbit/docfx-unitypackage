@@ -4,6 +4,12 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-09-27
+### Changed
+- The `current` banner reads "Latest version", or "Latest stable version" when a newer prerelease exists, followed by the picker. It names the version in the text only when there is no picker to show it.
+- The `superseded` banner reads "This is not the latest version." with a link reading "Go to latest version X".
+- The picker no longer labels the page's own version "(this page)". Being the selected option already says so.
+
 ## [1.6.0] - 2026-09-19
 ### Changed
 - Every banner variant is pinned to the bottom of the viewport, not only `superseded` and `notice`. Which version a page documents, and the picker for changing it, are worth a line of viewport wherever the reader is in the page, and a banner that pins or not depending on whether a network fetch succeeded is a layout that changes for reasons the reader cannot see.

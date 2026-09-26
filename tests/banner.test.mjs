@@ -12,6 +12,7 @@ import {
   decideBanner,
   newerVersionUrls,
   pagePathWithinRelease,
+  supersededLinkText,
   supersededSegments,
   versionEntries,
 } from "../site-template/public/main.js"
@@ -243,17 +244,18 @@ test("the comparison reads named entries too", () => {
 const reads = (segments) => segments.map((segment) => segment.text).join("")
 const bolded = (segments) => segments.filter((segment) => segment.bold).map((segment) => segment.text)
 
-test("the current banner names the version, and says which kind of latest it means", () => {
-  assert.equal(reads(currentSegments("1.2.0", "release")), "This documents version 1.2.0, the latest release.")
-  assert.equal(reads(currentSegments("1.2.0", "stable")), "This documents version 1.2.0, the latest stable release.")
+test("the current banner says which kind of latest it means, and leaves the version to the picker", () => {
+  assert.equal(reads(currentSegments("1.2.0", "release", false)), "Latest version")
+  assert.equal(reads(currentSegments("1.2.0", "stable", false)), "Latest stable version")
 })
 
-test("the version a page documents is bold, and the prose around it is not", () => {
-  assert.deepEqual(bolded(currentSegments("1.2.0", "release")), ["1.2.0"])
+test("without a picker the current banner names the version itself, in bold", () => {
+  const segments = currentSegments("1.2.0", "release", true)
+  assert.equal(reads(segments), "Latest version 1.2.0")
+  assert.deepEqual(bolded(segments), ["1.2.0"])
 })
 
-test("the superseded banner reads as before, with both versions bold", () => {
-  const segments = supersededSegments("1.0.0", "1.1.0")
-  assert.equal(reads(segments), "This documents version 1.0.0. Version 1.1.0 is newer.")
-  assert.deepEqual(bolded(segments), ["1.0.0", "1.1.0"])
+test("the superseded banner says the page is not the latest, and its link names the latest", () => {
+  assert.equal(reads(supersededSegments()), "This is not the latest version.")
+  assert.equal(supersededLinkText("1.1.0"), "Go to latest version 1.1.0")
 })

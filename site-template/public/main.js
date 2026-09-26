@@ -30,23 +30,20 @@ const plain = (text) => ({ text, bold: false })
 const strong = (text) => ({ text, bold: true })
 
 // A stable reader is never pointed at a newer prerelease, so on that page only the narrower
-// claim is true.
-export function currentSegments(version, latestKind) {
-  return [
-    plain("This documents version "),
-    strong(version),
-    plain(latestKind === "stable" ? ", the latest stable release." : ", the latest release."),
-  ]
+// claim is true. The picker beside the text shows the page's own version as its selection, so
+// the text names the version only when there is no picker to show it.
+export function currentSegments(version, latestKind, namesVersion) {
+  const label = latestKind === "stable" ? "Latest stable version" : "Latest version"
+  return namesVersion ? [plain(`${label} `), strong(version)] : [plain(label)]
 }
 
-export function supersededSegments(version, newer) {
-  return [
-    plain("This documents version "),
-    strong(version),
-    plain(". Version "),
-    strong(newer),
-    plain(" is newer."),
-  ]
+// The newer version is named by the link that follows.
+export function supersededSegments() {
+  return [plain("This is not the latest version.")]
+}
+
+export function supersededLinkText(newer) {
+  return `Go to latest version ${newer}`
 }
 
 // --- version precedence -----------------------------------------------------
@@ -316,7 +313,7 @@ function addVersionPicker(banner, facts, entries) {
   for (const entry of reachable) {
     const option = document.createElement("option")
     option.value = entry.version
-    option.textContent = entry.version === facts.version ? `${entry.version} (this page)` : entry.version
+    option.textContent = entry.version
     option.selected = entry.version === facts.version
     picker.append(option)
   }
@@ -325,7 +322,7 @@ function addVersionPicker(banner, facts, entries) {
   if (!reachable.some((entry) => entry.version === facts.version)) {
     const option = document.createElement("option")
     option.value = facts.version
-    option.textContent = `${facts.version} (this page)`
+    option.textContent = facts.version
     option.selected = true
     picker.insertBefore(option, picker.firstChild)
   }
@@ -429,7 +426,12 @@ async function checkForNewerVersion() {
   const entries = versionEntries(manifest, facts.siteRoot)
 
   if (decision.kind === "current") {
-    addVersionPicker(showBanner("current", currentSegments(facts.version, decision.latestKind)), facts, entries)
+    const namesVersion = pickerEntries(entries).length === 0
+    addVersionPicker(
+      showBanner("current", currentSegments(facts.version, decision.latestKind, namesVersion)),
+      facts,
+      entries,
+    )
     return
   }
 
@@ -437,9 +439,9 @@ async function checkForNewerVersion() {
 
   const banner = showBanner(
     "superseded",
-    supersededSegments(facts.version, decision.version),
+    supersededSegments(),
     target ? target.url : null,
-    `Go to ${decision.version}`,
+    supersededLinkText(decision.version),
   )
   addVersionPicker(banner, facts, entries)
   await preferTheSamePage(banner, facts, target)
