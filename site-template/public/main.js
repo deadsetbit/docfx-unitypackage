@@ -33,8 +33,8 @@ const strong = (text) => ({ text, bold: true })
 // claim is true. The picker beside the text shows the page's own version as its selection, so
 // the text names the version only when there is no picker to show it.
 export function currentSegments(version, latestKind, namesVersion) {
-  const label = latestKind === "stable" ? "Latest stable version" : "Latest version"
-  return namesVersion ? [plain(`${label} `), strong(version)] : [plain(label)]
+  const label = latestKind === "stable" ? "This is the latest stable version" : "This is the latest version"
+  return namesVersion ? [plain(`${label}, `), strong(version), plain(".")] : [plain(`${label}.`)]
 }
 
 // The newer version is named by the link that follows.

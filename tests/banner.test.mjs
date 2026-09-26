@@ -245,13 +245,13 @@ const reads = (segments) => segments.map((segment) => segment.text).join("")
 const bolded = (segments) => segments.filter((segment) => segment.bold).map((segment) => segment.text)
 
 test("the current banner says which kind of latest it means, and leaves the version to the picker", () => {
-  assert.equal(reads(currentSegments("1.2.0", "release", false)), "Latest version")
-  assert.equal(reads(currentSegments("1.2.0", "stable", false)), "Latest stable version")
+  assert.equal(reads(currentSegments("1.2.0", "release", false)), "This is the latest version.")
+  assert.equal(reads(currentSegments("1.2.0", "stable", false)), "This is the latest stable version.")
 })
 
 test("without a picker the current banner names the version itself, in bold", () => {
   const segments = currentSegments("1.2.0", "release", true)
-  assert.equal(reads(segments), "Latest version 1.2.0")
+  assert.equal(reads(segments), "This is the latest version, 1.2.0.")
   assert.deepEqual(bolded(segments), ["1.2.0"])
 })
 

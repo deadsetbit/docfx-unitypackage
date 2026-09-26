@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [1.7.0] - 2026-09-27
 ### Changed
-- The `current` banner reads "Latest version", or "Latest stable version" when a newer prerelease exists, followed by the picker. It names the version in the text only when there is no picker to show it.
+- The `current` banner reads "This is the latest version.", or "This is the latest stable version." when a newer prerelease exists, followed by the picker. It names the version in the text only when there is no picker to show it.
 - The `superseded` banner reads "This is not the latest version." with a link reading "Go to latest version X".
 - The picker no longer labels the page's own version "(this page)". Being the selected option already says so.
 
