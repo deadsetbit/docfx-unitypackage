@@ -62,8 +62,13 @@ footer .docs-version {
   color: #9ec5fe;
 }
 
+.docs-banner-text {
+  display: inline-block;
+}
+
 .docs-banner a {
   color: inherit;
+  white-space: nowrap;
 }
 
 /* Kept to one line: every release ever published ends up in this list. */

@@ -271,21 +271,26 @@ function showBanner(variant, segments, href, linkText) {
   const banner = document.createElement("div")
   banner.className = `docs-banner docs-banner-${variant}`
   banner.setAttribute("role", "status")
+  // One box for the text, so on a narrow screen it wraps under the picker as a whole rather
+  // than leaving its last word on a line of its own.
+  const text = document.createElement("span")
+  text.className = "docs-banner-text"
   for (const segment of segments) {
     if (segment.bold) {
       const bold = document.createElement("strong")
       bold.textContent = segment.text
-      banner.append(bold)
+      text.append(bold)
     } else {
-      banner.append(segment.text)
+      text.append(segment.text)
     }
   }
   if (href) {
     const link = document.createElement("a")
     link.href = href
     link.textContent = linkText || "Go to the current documentation"
-    banner.append(" ", link, ".")
+    text.append(" ", link, ".")
   }
+  banner.append(text)
   // Last in the body, which is what lets the stylesheet pin it: sticky reserves its space
   // where the element sits, so from here it comes to rest under the footer at the end of the
   // page rather than covering it.
